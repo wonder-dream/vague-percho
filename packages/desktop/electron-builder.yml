@@ -9,6 +9,11 @@ files:
   - out/**
   - package.json
   - "!node_modules/@percho"
+  # Magic Context 只走 onnxruntime-web 的 wasm 嵌入：原生 onnxruntime-node（~290MB）与 sharp（仅图片管线）不进包，
+  # 缺失时扩展自动回落到 wasm（见其 local_binding_missing 分支）
+  - "!**/node_modules/onnxruntime-node/**"
+  - "!**/node_modules/sharp/**"
+  - "!**/node_modules/@img/**"
 asarUnpack:
   - "**/*.node"
   # UI 插件运行时构建：esbuild 要 spawn 平台二进制，asar 内无法 exec（spawn ENOTDIR）；

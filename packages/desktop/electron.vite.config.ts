@@ -16,7 +16,8 @@ export default defineConfig({
 					entryFileNames: (chunk) =>
 						chunk.name === "session-media-worker" ? "session-media-worker.mjs" : "[name].js",
 				},
-				external: ["@earendil-works/pi-coding-agent"],
+				// magic-context 自带 worker（new Worker(new URL(...))）与 wasm 资源，必须保持 node_modules 原样加载
+				external: ["@earendil-works/pi-coding-agent", "@cortexkit/pi-magic-context"],
 			},
 		},
 		resolve: {
