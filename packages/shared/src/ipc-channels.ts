@@ -10,7 +10,7 @@ import type {
 	ExtensionEditorTextEvent,
 	ExtensionNotifyEvent,
 } from "./extension-dialog";
-import type { ForestGraph } from "./forest";
+import type { ForestGraph, ForestTurnDetail } from "./forest";
 import type { LanStatus } from "./lan";
 import type { McpConfigListResult, McpMutationResult, McpServersChangedPayload, McpUpsertInput } from "./mcp";
 import type {
@@ -160,6 +160,15 @@ export const SESSION_CHANNELS = {
 		"read",
 	)<{ cwd: string }, ForestGraph>({
 		cwd: input.id,
+	}),
+	/** 森林详情：读一轮完整问答与工具过程（按会话文件 + 提问 entry id 定位） */
+	getForestTurn: ch(
+		"forest:turn",
+		"environment",
+		"read",
+	)<{ sessionFile: string; userEntryId: string }, ForestTurnDetail>({
+		sessionFile: input.text,
+		userEntryId: input.id,
 	}),
 	/** opencode-go 套餐额度（全局；无 key/无订阅 null） */
 	getQuota: ch("session:getQuota", "environment", "read")<void, QuotaInfo | null>(),

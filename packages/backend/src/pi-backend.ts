@@ -32,6 +32,7 @@ import type {
 	ExtensionEditorTextEvent,
 	ExtensionNotifyEvent,
 	ForestGraph,
+	ForestTurnDetail,
 	ImageInput,
 	LoadedResources,
 	LoginEventPayload,
@@ -103,7 +104,7 @@ import {
 import { slimBulkyEvent, slimMessageUpdate } from "./session/event-slim";
 import { ExtensionDialogHost } from "./session/extension-dialog-host";
 import { SessionFileOperations } from "./session/file-operations";
-import { loadForestGraph } from "./session/forest";
+import { loadForestGraph, readForestTurn } from "./session/forest";
 import { type SelectedHistory, SessionHistoryPager } from "./session/history-pager";
 import { SessionHydrationGate } from "./session/hydration-gate";
 import { LiveTranscript } from "./session/live-transcript";
@@ -1402,6 +1403,12 @@ export class PiBackend {
 			.filter((info) => !isSubagentSessionPath(info.path))
 			.map((info) => info.path);
 		return loadForestGraph(cwd, paths);
+	}
+
+	/** 森林详情：只读解析会话文件里某一轮的完整内容（路径经私有存储校验） */
+	async getForestTurn(sessionFile: string, userEntryId: string): Promise<ForestTurnDetail> {
+		const file = this.options.localSessionPaths?.resolveFile(sessionFile) ?? sessionFile;
+		return readForestTurn(file, userEntryId);
 	}
 
 	/** 跨全部项目目录枚举会话（项目管理页用，含活跃会话） */

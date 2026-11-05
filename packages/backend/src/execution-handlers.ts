@@ -18,6 +18,7 @@ export function createExecutionHandlers(
 		listSessions: ({ cwd }) => backend.listSessions(cwd),
 		listAllSessions: () => backend.listAllSessions(),
 		getForestGraph: ({ cwd }) => backend.getForestGraph(cwd),
+		getForestTurn: ({ sessionFile, userEntryId }) => backend.getForestTurn(sessionFile, userEntryId),
 		openSession: ({ filePath }) => backend.openSession(filePath),
 		closeSession: ({ sessionId, intent }) => backend.closeSession(sessionId, intent),
 		getChannelSubscriptionSessionIds: () => backend.getChannelSubscriptionSessionIds(),

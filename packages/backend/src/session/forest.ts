@@ -1,7 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseSessionEntries, type SessionEntry } from "@earendil-works/pi-coding-agent";
-import { FOREST_PREVIEW_CHARS, type ForestGraph, type ForestSession, type ForestTurn } from "@percho/shared";
+import {
+	FOREST_BODY_CHARS,
+	FOREST_PREVIEW_CHARS,
+	type ForestGraph,
+	type ForestSession,
+	type ForestTurn,
+	type ForestTurnDetail,
+} from "@percho/shared";
 import { blockText, type ContentBlock, type RawMessage } from "./messages";
 
 /**
@@ -167,4 +174,90 @@ export async function loadForestGraph(cwd: string, paths: readonly string[]): Pr
 		)
 	).filter((file): file is ForestSourceFile => file !== null);
 	return buildForestGraph(cwd, files);
+}
+
+/**
+ * 一轮完整内容：从提问 entry 起沿当前分支往后，直到下一条用户提问。
+ * 用整棵 entry 表定位（提问 entry 可能不在当前分支上：子会话继承前缀里的 id 与父相同，
+ * 从任一含它的文件读都一样），工具结果按 toolCallId 回填。
+ */
+export function toForestTurnDetail(content: string, userEntryId: string): ForestTurnDetail {
+	const entries = parseSessionEntries(content).filter(
+		(entry): entry is SessionEntry => entry.type !== "session",
+	);
+	const start = entries.find((entry) => entry.id === userEntryId);
+	if (!start || !isUserTurn(start)) throw new Error("Forest turn not found");
+	const childrenOf = new Map<string, SessionEntry[]>();
+	for (const entry of entries) {
+		if (!entry.parentId) continue;
+		const list = childrenOf.get(entry.parentId) ?? [];
+		list.push(entry);
+		childrenOf.set(entry.parentId, list);
+	}
+	// 沿最后写入的子节点走（与 leaf = 末条 entry 的分支语义一致）
+	const path: SessionEntry[] = [];
+	let cursor: SessionEntry | undefined = start;
+	const seen = new Set<string>();
+	while (cursor && !seen.has(cursor.id)) {
+		seen.add(cursor.id);
+		if (cursor !== start && isUserTurn(cursor)) break;
+		path.push(cursor);
+		const children: SessionEntry[] = childrenOf.get(cursor.id) ?? [];
+		cursor = children[children.length - 1];
+	}
+	let budget = FOREST_BODY_CHARS;
+	let truncated = false;
+	const take = (text: string): string => {
+		if (budget <= 0) {
+			truncated ||= text.length > 0;
+			return "";
+		}
+		if (text.length > budget) {
+			truncated = true;
+			const head = text.slice(0, budget);
+			budget = 0;
+			return head;
+		}
+		budget -= text.length;
+		return text;
+	};
+	const question = take(
+		blockText((start.type === "message" ? (start.message as RawMessage) : undefined)?.content).trim(),
+	);
+	const answers: string[] = [];
+	const tools: ForestTurnDetail["tools"] = [];
+	const toolIndex = new Map<string, number>();
+	for (const entry of path.slice(1)) {
+		if (entry.type !== "message") continue;
+		const message = entry.message as RawMessage;
+		if (message.role === "assistant") {
+			const text = blockText(message.content).trim();
+			if (text) answers.push(take(text));
+			else if (message.stopReason === "error" && message.errorMessage)
+				answers.push(take(message.errorMessage));
+			if (typeof message.content !== "string")
+				for (const block of message.content ?? []) {
+					if (block.type !== "toolCall" || !block.id) continue;
+					toolIndex.set(block.id, tools.length);
+					tools.push({
+						name: block.name ?? "tool",
+						args: take(JSON.stringify(block.arguments ?? {})),
+						output: "",
+						isError: false,
+					});
+				}
+		} else if (message.role === "toolResult" && message.toolCallId) {
+			const index = toolIndex.get(message.toolCallId);
+			const tool = index === undefined ? undefined : tools[index];
+			if (tool) {
+				tool.output = take(blockText(message.content));
+				tool.isError = Boolean(message.isError);
+			}
+		}
+	}
+	return { question, answers, tools, truncated };
+}
+
+export async function readForestTurn(path: string, userEntryId: string): Promise<ForestTurnDetail> {
+	return toForestTurnDetail(await readFile(path, "utf8"), userEntryId);
 }

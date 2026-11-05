@@ -506,6 +506,12 @@ export const en: Messages = {
 		busy: "The session is running, try again later",
 		sendFailed: "Send failed",
 		question: "Question",
+		truncated: "Too long, truncated; open the session for the full text",
+		askSelection: "Ask about selection",
+		editPhrases: "Edit quick phrases",
+		donePhrases: "Done",
+		addPhrase: "New phrase",
+		removePhrase: "Remove phrase",
 		answer: "Answer",
 	},
 	diff: {

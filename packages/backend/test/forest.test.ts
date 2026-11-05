@@ -1,10 +1,10 @@
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Message } from "@earendil-works/pi-ai";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildForestGraph, loadForestGraph, toForestTurns } from "../src/session/forest";
+import { buildForestGraph, loadForestGraph, toForestTurnDetail, toForestTurns } from "../src/session/forest";
 
 const user = (text: string, timestamp: number): Message => ({ role: "user", content: text, timestamp });
 const assistant = (text: string, timestamp: number, extra: Record<string, unknown> = {}): Message =>
@@ -48,6 +48,50 @@ describe("toForestTurns", () => {
 			toolCount: 1,
 		});
 		expect(turns[1]).toMatchObject({ userEntryId: q2, answer: "boom", errored: true });
+	});
+});
+
+describe("toForestTurnDetail", () => {
+	it("returns the full turn with tool outputs and stops at the next question", () => {
+		const dir = mkdtempSync(join(tmpdir(), "forest-detail-"));
+		dirs.push(dir);
+		const sm = SessionManager.create(dir, dir);
+		const long = "x".repeat(2000);
+		const q1 = sm.appendMessage(user("Q1", 1));
+		sm.appendMessage({
+			role: "assistant",
+			content: [
+				{ type: "text", text: "looking" },
+				{ type: "toolCall", id: "c1", name: "read", arguments: { path: "a" } },
+			],
+			api: "anthropic",
+			provider: "anthropic",
+			model: "claude",
+			timestamp: 2,
+		} as unknown as Message);
+		sm.appendMessage({
+			role: "toolResult",
+			toolCallId: "c1",
+			toolName: "read",
+			content: [{ type: "text", text: "file body" }],
+			isError: false,
+			timestamp: 3,
+		} as unknown as Message);
+		sm.appendMessage(assistant(long, 4));
+		sm.appendMessage(user("Q2", 5));
+		sm.appendMessage(assistant("A2", 6));
+		const content =
+			readdirSync(dir)
+				.filter((name) => name.endsWith(".jsonl"))
+				.map((name) => readFileSync(join(dir, name), "utf8"))[0] ?? "";
+		const detail = toForestTurnDetail(content, q1);
+		expect(detail.question).toBe("Q1");
+		expect(detail.answers).toEqual(["looking", long]);
+		expect(detail.tools).toEqual([
+			{ name: "read", args: JSON.stringify({ path: "a" }), output: "file body", isError: false },
+		]);
+		expect(detail.truncated).toBe(false);
+		expect(() => toForestTurnDetail(content, "missing")).toThrow();
 	});
 });
 

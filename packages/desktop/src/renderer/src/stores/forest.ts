@@ -1,4 +1,4 @@
-import type { ForestGraph, ForestLayout, SessionMeta } from "@percho/shared";
+import type { ForestGraph, ForestLayout, ForestTurnDetail, SessionMeta } from "@percho/shared";
 import { create } from "zustand";
 import { getExecutionApi } from "../environment-api";
 import { useProjectsStore } from "./projects";
@@ -12,6 +12,19 @@ import { useTranscriptStore } from "./transcript";
  */
 
 const LAYOUT_KEY = (cwd: string) => `percho.forest.layout:${cwd}`;
+const PHRASES_KEY = "percho.forest.phrases";
+export const DEFAULT_QUICK_PHRASES = ["展开说明", "举个例子", "通俗易懂地讲", "对比一下优缺点"];
+
+function readPhrases(): string[] {
+	try {
+		const parsed: unknown = JSON.parse(localStorage.getItem(PHRASES_KEY) ?? "null");
+		if (Array.isArray(parsed))
+			return parsed.filter((item): item is string => typeof item === "string" && item.trim() !== "");
+	} catch {
+		// 读坏了回默认
+	}
+	return DEFAULT_QUICK_PHRASES;
+}
 const EMPTY_LAYOUT: ForestLayout = { version: 1, positions: {}, collapsed: [] };
 
 function readLayout(cwd: string): ForestLayout {
@@ -49,6 +62,16 @@ interface ForestStore {
 	layout: ForestLayout;
 	/** 详情栏选中的卡片 key（`${sessionId}:${userEntryId}`） */
 	selected: string | null;
+	/** 详情全文缓存（key 同卡片） */
+	details: Record<string, ForestTurnDetail | { error: string }>;
+	/** 输入框上方的常用补充词（可编辑，localStorage） */
+	phrases: string[];
+	/** 卡片上打开的输入框；quote = 从回答里选中的引文 */
+	composer: { cardKey: string; mode: "continue" | "fork"; quote?: string } | null;
+	openComposer: (cardKey: string, mode: "continue" | "fork", quote?: string) => void;
+	closeComposer: () => void;
+	loadDetail: (key: string, sessionFile: string, userEntryId: string) => Promise<void>;
+	setPhrases: (phrases: string[]) => void;
 	setOpen: (open: boolean) => void;
 	toggle: () => void;
 	/** 拉取（或重拉）当前项目的图；cwd 变化时换布局 */
@@ -82,6 +105,34 @@ export const useForestStore = create<ForestStore>((set, get) => ({
 	error: null,
 	layout: EMPTY_LAYOUT,
 	selected: null,
+	details: {},
+	phrases: readPhrases(),
+	composer: null,
+	openComposer: (cardKey, mode, quote) => set({ composer: { cardKey, mode, ...(quote ? { quote } : {}) } }),
+	closeComposer: () => set({ composer: null }),
+	loadDetail: async (key, sessionFile, userEntryId) => {
+		if (get().details[key] && !("error" in (get().details[key] ?? {}))) return;
+		try {
+			const detail = await getExecutionApi(sessionFile).getForestTurn({ sessionFile, userEntryId });
+			set((state) => ({ details: { ...state.details, [key]: detail } }));
+		} catch (error) {
+			set((state) => ({
+				details: {
+					...state.details,
+					[key]: { error: error instanceof Error ? error.message : String(error) },
+				},
+			}));
+		}
+	},
+	setPhrases: (phrases) => {
+		const clean = phrases.map((phrase) => phrase.trim()).filter(Boolean);
+		try {
+			localStorage.setItem(PHRASES_KEY, JSON.stringify(clean));
+		} catch {
+			// 只是偏好
+		}
+		set({ phrases: clean });
+	},
 	setOpen: (open) => {
 		set({ open });
 		const { cwd } = get();
@@ -94,7 +145,16 @@ export const useForestStore = create<ForestStore>((set, get) => ({
 		set({ loading: true, error: null });
 		try {
 			const graph = await getExecutionApi(cwd).getForestGraph({ cwd });
-			if (ticket === refreshTicket) set({ graph, loading: false });
+			if (ticket !== refreshTicket) return;
+			// 只清掉内容有变化（modifiedAt 变了）的会话的详情缓存，避免轮询时详情栏闪烁
+			const before = new Map((get().graph?.sessions ?? []).map((s) => [s.sessionId, s.modifiedAt]));
+			const changed = new Set(
+				graph.sessions.filter((s) => before.get(s.sessionId) !== s.modifiedAt).map((s) => s.sessionId),
+			);
+			const details = Object.fromEntries(
+				Object.entries(get().details).filter(([key]) => !changed.has(key.slice(0, key.indexOf(":")))),
+			);
+			set({ graph, loading: false, details });
 		} catch (error) {
 			if (ticket === refreshTicket)
 				set({ loading: false, error: error instanceof Error ? error.message : String(error) });

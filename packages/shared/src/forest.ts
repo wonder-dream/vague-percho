@@ -43,6 +43,18 @@ export interface ForestGraph {
 	sessions: ForestSession[];
 }
 
+/** 详情全文上限：超出截断并标注（完整内容在原会话里） */
+export const FOREST_BODY_CHARS = 200_000;
+
+/** 详情栏读取的一轮完整内容（正文不进图数据，按需读取） */
+export interface ForestTurnDetail {
+	question: string;
+	/** 本轮各条助手消息正文（按顺序；工具调用穿插在中间的分段） */
+	answers: string[];
+	tools: Array<{ name: string; args: string; output: string; isError: boolean }>;
+	truncated: boolean;
+}
+
 /** 卡片布局（app 本地 userData/forest/，不写进会话文件；删掉只丢布局） */
 export interface ForestLayout {
 	version: 1;

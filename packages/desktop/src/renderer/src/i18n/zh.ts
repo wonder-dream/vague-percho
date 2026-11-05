@@ -488,6 +488,12 @@ export const zh = {
 		busy: "会话正在运行，稍后再试",
 		sendFailed: "发送失败",
 		question: "提问",
+		truncated: "内容过长，已截断；完整内容请打开会话查看",
+		askSelection: "追问选中内容",
+		editPhrases: "编辑常用补充词",
+		donePhrases: "完成",
+		addPhrase: "新补充词",
+		removePhrase: "删除补充词",
 		answer: "回答",
 	},
 	diff: {

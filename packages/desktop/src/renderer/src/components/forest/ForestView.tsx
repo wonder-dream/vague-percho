@@ -14,12 +14,14 @@ import { useTranscriptStore } from "../../stores/transcript";
 import { Markdown } from "../chat/Markdown";
 import {
 	ArrowUpIcon,
+	CheckIcon,
 	ChevronDownIcon,
 	ChevronRightIcon,
 	CloseIcon,
 	ForkIcon,
 	LayoutGridIcon,
 	LocateIcon,
+	PencilIcon,
 	PlusIcon,
 	RefreshIcon,
 	UndoIcon,
@@ -213,6 +215,11 @@ function CardComposer({
 }) {
 	const t = useT();
 	const ask = useForestStore((s) => s.ask);
+	const quote = useForestStore((s) => s.composer?.quote);
+	const phrases = useForestStore((s) => s.phrases);
+	const setPhrases = useForestStore((s) => s.setPhrases);
+	const [editingPhrases, setEditingPhrases] = useState(false);
+	const [newPhrase, setNewPhrase] = useState("");
 	const [text, setText] = useState("");
 	const [sending, setSending] = useState(false);
 	const ref = useRef<HTMLTextAreaElement>(null);
@@ -220,18 +227,76 @@ function CardComposer({
 	const submit = async () => {
 		if (!text.trim() || sending) return;
 		setSending(true);
+		const quoted = quote
+			? `${quote
+					.split("\n")
+					.map((line) => `> ${line}`)
+					.join("\n")}\n\n${text}`
+			: text;
 		const ok = await ask({
 			sessionId: card.sessionId,
 			sessionFile: card.sessionFile,
 			mode,
 			assistantEntryId: card.turn?.assistantEntryId,
-			text,
+			text: quoted,
 		});
 		setSending(false);
 		if (ok) onClose();
 	};
 	return (
-		<div className="mx-3 mt-2 flex flex-col gap-1.5">
+		<div className="mx-3 mt-2 flex flex-col gap-1.5" onPointerDown={(event) => event.stopPropagation()}>
+			{quote && (
+				<blockquote className="line-clamp-3 border-l-2 border-accent pl-2 text-ui-11 text-ink-dim">
+					{quote}
+				</blockquote>
+			)}
+			<div className="flex flex-wrap items-center gap-1">
+				{phrases.map((phrase, index) => (
+					<span key={phrase} className="inline-flex items-center">
+						<button
+							type="button"
+							className="rounded-md border border-border px-1.5 py-0.5 text-ui-11 text-ink-2 hover:bg-hover"
+							onClick={() => {
+								setText((current) => (current.trim() ? `${current.trimEnd()}，${phrase}` : phrase));
+								ref.current?.focus();
+							}}
+						>
+							{phrase}
+						</button>
+						{editingPhrases && (
+							<button
+								type="button"
+								aria-label={t("forest.removePhrase")}
+								className="ml-0.5 text-ink-faint hover:text-err"
+								onClick={() => setPhrases(phrases.filter((_, i) => i !== index))}
+							>
+								<CloseIcon size={11} />
+							</button>
+						)}
+					</span>
+				))}
+				{editingPhrases ? (
+					<input
+						value={newPhrase}
+						placeholder={t("forest.addPhrase")}
+						className="w-24 rounded-md border border-border bg-canvas px-1.5 py-0.5 text-ui-11 text-ink outline-none"
+						onChange={(event) => setNewPhrase(event.target.value)}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" && newPhrase.trim()) {
+								setPhrases([...phrases, newPhrase.trim()]);
+								setNewPhrase("");
+							}
+							if (event.key === "Escape") setEditingPhrases(false);
+						}}
+					/>
+				) : null}
+				<IconButton
+					label={editingPhrases ? t("forest.donePhrases") : t("forest.editPhrases")}
+					onClick={() => setEditingPhrases((value) => !value)}
+				>
+					{editingPhrases ? <CheckIcon size={12} /> : <PencilIcon size={12} />}
+				</IconButton>
+			</div>
 			<textarea
 				ref={ref}
 				value={text}
@@ -276,11 +341,48 @@ function Inspector({
 }: {
 	card: ForestCard;
 	onClose: () => void;
-	onCompose: (mode: Composer["mode"]) => void;
+	onCompose: (mode: Composer["mode"], quote?: string) => void;
 }) {
 	const t = useT();
 	const openSession = useForestStore((s) => s.openSession);
+	const loadDetail = useForestStore((s) => s.loadDetail);
+	const detail = useForestStore((s) => s.details[card.key]);
 	const turn: ForestTurn | null = card.turn;
+	useEffect(() => {
+		if (turn) void loadDetail(card.key, card.sessionFile, turn.userEntryId);
+	}, [card.key, card.sessionFile, turn, loadDetail]);
+	const full = detail && !("error" in detail) ? detail : undefined;
+	const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null);
+	const bodyRef = useRef<HTMLDivElement>(null);
+	// 在回答里选中文字 → 浮出「追问」按钮，带引文打开卡片输入框
+	const captureSelection = () => {
+		const current = window.getSelection();
+		const text = current?.toString().trim() ?? "";
+		if (!current || !text || current.rangeCount === 0 || !bodyRef.current?.contains(current.anchorNode)) {
+			setSelection(null);
+			return;
+		}
+		const rect = current.getRangeAt(0).getBoundingClientRect();
+		const host = bodyRef.current.getBoundingClientRect();
+		setSelection({
+			text: text.slice(0, 2000),
+			x: rect.left - host.left + rect.width / 2,
+			y: rect.top - host.top,
+		});
+	};
+	// 选区稳定后（松开鼠标/键盘扩选结束）再定位按钮：selectionchange 在拖选过程中连续触发，防抖到停顿
+	useEffect(() => {
+		let timer = 0;
+		const onChange = () => {
+			window.clearTimeout(timer);
+			timer = window.setTimeout(captureSelection, 180);
+		};
+		document.addEventListener("selectionchange", onChange);
+		return () => {
+			window.clearTimeout(timer);
+			document.removeEventListener("selectionchange", onChange);
+		};
+	});
 	return (
 		<aside className="flex h-full w-[min(420px,40%)] min-w-72 shrink-0 flex-col border-l border-border bg-canvas">
 			<div className="flex items-start gap-2 px-4 pt-3 pb-2">
@@ -294,22 +396,79 @@ function Inspector({
 					<CloseIcon size={14} />
 				</IconButton>
 			</div>
-			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+			<div
+				ref={bodyRef}
+				className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-4"
+				onScroll={() => setSelection(null)}
+			>
 				<h3 className="text-ui-11 font-medium text-ink-faint">{t("forest.question")}</h3>
 				<p className="mt-1 whitespace-pre-wrap break-words text-ui-13 text-ink">
-					{turn?.question ?? t("forest.emptyBranch")}
+					{full?.question ?? turn?.question ?? t("forest.emptyBranch")}
 				</p>
 				{turn && (
 					<>
 						<h3 className="mt-4 text-ui-11 font-medium text-ink-faint">{t("forest.answer")}</h3>
-						<div className="mt-1 text-ui-13">
-							{turn.answer ? (
+						<div className="mt-1 flex flex-col gap-3 text-ui-13">
+							{full ? (
+								full.answers.length > 0 ? (
+									full.answers.map((answer, index) => (
+										// biome-ignore lint/suspicious/noArrayIndexKey: 同一轮的回答分段只追加不重排
+										<Markdown key={index} text={answer} />
+									))
+								) : (
+									<span className="text-ink-faint">{t("forest.noAnswer")}</span>
+								)
+							) : turn.answer ? (
 								<Markdown text={turn.answer} />
 							) : (
 								<span className="text-ink-faint">{t("forest.noAnswer")}</span>
 							)}
+							{full?.truncated && <p className="text-ui-11 text-warn">{t("forest.truncated")}</p>}
+							{detail && "error" in detail && <p className="text-ui-11 text-err">{detail.error}</p>}
 						</div>
+						{full && full.tools.length > 0 && (
+							<details className="mt-4">
+								<summary className="cursor-pointer text-ui-11 font-medium text-ink-faint">
+									{t("forest.tools", { count: full.tools.length })}
+								</summary>
+								<ul className="mt-2 flex flex-col gap-2">
+									{full.tools.map((tool, index) => (
+										<li
+											// biome-ignore lint/suspicious/noArrayIndexKey: 工具调用顺序固定
+											key={index}
+											className="rounded-md border border-border bg-surface px-2 py-1.5 text-ui-11"
+										>
+											<div className={`font-medium ${tool.isError ? "text-err" : "text-ink-2"}`}>
+												{tool.name}
+											</div>
+											<div className="mt-0.5 truncate font-mono text-ink-faint">{tool.args}</div>
+											{tool.output && (
+												<pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-ink-dim">
+													{tool.output}
+												</pre>
+											)}
+										</li>
+									))}
+								</ul>
+							</details>
+						)}
 					</>
+				)}
+				{selection && turn && (
+					<button
+						type="button"
+						className="absolute z-10 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-md bg-ink px-2 py-1 text-ui-11 text-on-ink shadow-pop"
+						style={{ left: selection.x, top: selection.y - 6 + (bodyRef.current?.scrollTop ?? 0) }}
+						onMouseDown={(event) => event.preventDefault()}
+						onClick={() => {
+							onCompose("continue", selection.text);
+							setSelection(null);
+							window.getSelection()?.removeAllRanges();
+						}}
+					>
+						<PlusIcon size={12} />
+						{t("forest.askSelection")}
+					</button>
 				)}
 			</div>
 			<div className="flex items-center justify-end gap-2 border-t border-border px-4 py-2">
@@ -392,7 +551,9 @@ export function ForestView() {
 		);
 		setCamera({ zoom, x: PADDING, y: Math.max(PADDING, (rect.height - view.height * zoom) / 2) });
 	}, [view, cwd]);
-	const [composer, setComposer] = useState<Composer | null>(null);
+	const composer = useForestStore((s) => s.composer);
+	const setComposer = useForestStore((s) => s.openComposer);
+	const closeComposer = useForestStore((s) => s.closeComposer);
 	const viewportRef = useRef<HTMLDivElement>(null);
 
 	const cardByKey = useMemo(() => new Map((view?.cards ?? []).map((card) => [card.key, card])), [view]);
@@ -400,14 +561,18 @@ export function ForestView() {
 	const collapsedSet = useMemo(() => new Set(layout.collapsed), [layout.collapsed]);
 	const selectedCard = selected ? cardByKey.get(selected) : undefined;
 
-	const centerOn = (card: ForestCard) => {
+	/** 把卡片移到视口中央；minZoom 用于需要阅读/输入的场景（输入框在 36% 下没法用） */
+	const centerOn = (card: ForestCard, minZoom = 0) => {
 		const rect = viewportRef.current?.getBoundingClientRect();
 		if (!rect) return;
-		setCamera((current) => ({
-			...current,
-			x: rect.width / 2 - (card.x + FOREST_CARD_WIDTH / 2) * current.zoom,
-			y: rect.height / 2 - (card.y + FOREST_CARD_HEIGHT / 2) * current.zoom,
-		}));
+		setCamera((current) => {
+			const zoom = Math.max(current.zoom, minZoom);
+			return {
+				zoom,
+				x: rect.width / 2 - (card.x + FOREST_CARD_WIDTH / 2) * zoom,
+				y: rect.height / 2 - (card.y + FOREST_CARD_HEIGHT / 2) * zoom,
+			};
+		});
 	};
 	const locate = () => {
 		const cards = view?.cards.filter((card) => card.sessionId === activeSessionId) ?? [];
@@ -501,9 +666,9 @@ export function ForestView() {
 		window.addEventListener("pointerup", up);
 	};
 
-	const openComposer = (card: ForestCard, mode: Composer["mode"]) => {
-		setComposer({ cardKey: card.key, mode });
-		centerOn(card);
+	const openComposer = (card: ForestCard, mode: Composer["mode"], quote?: string) => {
+		setComposer(card.key, mode, quote);
+		centerOn(card, 1);
 	};
 
 	let body: React.ReactNode = null;
@@ -605,7 +770,7 @@ export function ForestView() {
 											onDragStart={dragCard(card)}
 											onToggleCollapse={() => toggleCollapsed(card.key)}
 											onCompose={(mode) => openComposer(card, mode)}
-											onCloseComposer={() => setComposer(null)}
+											onCloseComposer={closeComposer}
 										/>
 									))}
 								</div>
@@ -618,7 +783,7 @@ export function ForestView() {
 				<Inspector
 					card={selectedCard}
 					onClose={() => select(null)}
-					onCompose={(mode) => openComposer(selectedCard, mode)}
+					onCompose={(mode, quote) => openComposer(selectedCard, mode, quote)}
 				/>
 			)}
 		</div>
