@@ -26,8 +26,10 @@ import {
 	PencilIcon,
 	PlusIcon,
 	RefreshIcon,
+	TrashIcon,
 	UndoIcon,
 } from "../icons";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Tooltip } from "../ui/Tooltip";
 
 /** 卡片预览：去掉 Markdown 标记，只留可读文本（完整渲染在详情栏） */
@@ -83,6 +85,46 @@ function IconButton({
 				{children}
 			</button>
 		</Tooltip>
+	);
+}
+
+/** 删除会话按钮 + 二次确认（与左栏 SessionMenu 同一个 ConfirmDialog / 删除链路） */
+function DeleteSessionButton({ card, variant }: { card: ForestCard; variant: "icon" | "text" }) {
+	const t = useT();
+	const deleteSession = useForestStore((s) => s.deleteSession);
+	const [confirming, setConfirming] = useState(false);
+	const name = card.sessionName ?? card.turn?.question ?? card.sessionId;
+	return (
+		<>
+			{variant === "icon" ? (
+				<IconButton label={t("forest.delete")} onClick={() => setConfirming(true)}>
+					<TrashIcon size={13} />
+				</IconButton>
+			) : (
+				<button
+					type="button"
+					className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-ui-12 text-err hover:bg-hover"
+					onClick={() => setConfirming(true)}
+				>
+					<TrashIcon size={13} />
+					{t("forest.delete")}
+				</button>
+			)}
+			{confirming && (
+				<ConfirmDialog
+					title={t("forest.deleteTitle")}
+					description={t("forest.deleteDesc", { name: name.length > 40 ? `${name.slice(0, 40)}…` : name })}
+					confirmLabel={t("sessionMenu.delete")}
+					cancelLabel={t("common.cancel")}
+					danger
+					onConfirm={() => {
+						setConfirming(false);
+						void deleteSession(card.sessionId, card.sessionFile);
+					}}
+					onCancel={() => setConfirming(false)}
+				/>
+			)}
+		</>
 	);
 }
 
@@ -187,6 +229,7 @@ function TurnCard({
 					<span className="text-ui-11 text-ink-faint">{t("forest.hidden", { count: hiddenCount })}</span>
 				)}
 				<div className="flex-1" />
+				{card.head && <DeleteSessionButton card={card} variant="icon" />}
 				{turn && (
 					<IconButton label={t("forest.continue")} onClick={() => onCompose("continue")}>
 						<PlusIcon size={14} />
@@ -473,7 +516,9 @@ function Inspector({
 					</button>
 				)}
 			</div>
-			<div className="flex items-center justify-end gap-2 border-t border-border px-4 py-2">
+			<div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-2">
+				<DeleteSessionButton card={card} variant="text" />
+				<div className="flex-1" />
 				{turn && (
 					<button
 						type="button"

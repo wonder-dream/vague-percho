@@ -82,6 +82,8 @@ interface ForestStore {
 	resetLayout: () => void;
 	/** 打开会话并回到对话视图 */
 	openSession: (sessionId: string, sessionFile: string) => Promise<void>;
+	/** 永久删除会话（复用左栏的删除链路）；从它 fork 出的分支保留，变成独立的根 */
+	deleteSession: (sessionId: string, sessionFile: string) => Promise<void>;
 	/**
 	 * 从卡片发起提问：mode=continue 在该会话末尾追问；mode=fork 先在该轮回答处分叉出新会话再提问。
 	 * 发送后切回对话视图看流式回复（回到森林时自动刷新）。成功返回 true。
@@ -96,6 +98,20 @@ interface ForestStore {
 }
 
 let refreshTicket = 0;
+
+/** 已加载会话用内存 meta；否则拼最小 meta（打开/删除只用到 id、文件与 cwd） */
+function metaFor(sessionId: string, sessionFile: string, cwd: string | null): SessionMeta {
+	return (
+		useSessionsStore.getState().sessions.find((session) => session.sessionId === sessionId) ?? {
+			sessionId,
+			sessionFile,
+			cwd: cwd ?? "",
+			active: false,
+			messageCount: 0,
+			createdAt: 0,
+		}
+	);
+}
 
 export const useForestStore = create<ForestStore>((set, get) => ({
 	open: false,
@@ -185,17 +201,33 @@ export const useForestStore = create<ForestStore>((set, get) => ({
 		set({ layout: EMPTY_LAYOUT });
 	},
 	openSession: async (sessionId, sessionFile) => {
-		const loaded = useSessionsStore.getState().sessions.find((session) => session.sessionId === sessionId);
-		const meta: SessionMeta = loaded ?? {
-			sessionId,
-			sessionFile,
-			cwd: get().cwd ?? "",
-			active: false,
-			messageCount: 0,
-			createdAt: 0,
-		};
-		await useProjectsStore.getState().openSession(meta);
+		await useProjectsStore.getState().openSession(metaFor(sessionId, sessionFile, get().cwd));
 		set({ open: false });
+	},
+	deleteSession: async (sessionId, sessionFile) => {
+		try {
+			await useProjectsStore.getState().deleteSession(metaFor(sessionId, sessionFile, get().cwd));
+		} catch (error) {
+			pushToast("error", "forest.deleteFailed", error instanceof Error ? error.message : String(error));
+			return;
+		}
+		const { cwd, layout, selected, composer } = get();
+		const prefix = `${sessionId}:`;
+		const positions = Object.fromEntries(
+			Object.entries(layout.positions).filter(([key]) => !key.startsWith(prefix)),
+		);
+		const next = {
+			...layout,
+			positions,
+			collapsed: layout.collapsed.filter((key) => !key.startsWith(prefix)),
+		};
+		if (cwd) writeLayout(cwd, next);
+		set({
+			layout: next,
+			selected: selected?.startsWith(prefix) ? null : selected,
+			composer: composer?.cardKey.startsWith(prefix) ? null : composer,
+		});
+		if (cwd) await get().refresh(cwd);
 	},
 	ask: async ({ sessionId, sessionFile, mode, assistantEntryId, text }) => {
 		const content = text.trim();

@@ -506,6 +506,11 @@ export const en: Messages = {
 		busy: "The session is running, try again later",
 		sendFailed: "Send failed",
 		question: "Question",
+		delete: "Delete session",
+		deleteTitle: "Delete this session?",
+		deleteDesc:
+			'The history and files of "{name}" will be permanently deleted. Branches forked from it are kept as separate sessions.',
+		deleteFailed: "Failed to delete session",
 		truncated: "Too long, truncated; open the session for the full text",
 		askSelection: "Ask about selection",
 		editPhrases: "Edit quick phrases",
