@@ -578,8 +578,19 @@ export function ForestView() {
 			MIN_ZOOM,
 			Math.min(1, (rect.width - PADDING * 2) / view.width, (rect.height - PADDING * 2) / view.height),
 		);
+		// 有当前会话：以它最新一张卡为中心（与 dsh-synapse「切会话带入视野」一致）；否则全图居中
+		const own = view.cards.filter((card) => card.sessionId === activeSessionId);
+		const focus = own[own.length - 1];
+		if (focus) {
+			setCamera({
+				zoom,
+				x: Math.min(PADDING, rect.width / 2 - (focus.x + FOREST_CARD_WIDTH / 2) * zoom),
+				y: rect.height / 2 - (focus.y + FOREST_CARD_HEIGHT / 2) * zoom,
+			});
+			return;
+		}
 		setCamera({ zoom, x: PADDING, y: Math.max(PADDING, (rect.height - view.height * zoom) / 2) });
-	}, [view, cwd]);
+	}, [view, cwd, activeSessionId]);
 	const composer = useForestStore((s) => s.composer);
 	const setComposer = useForestStore((s) => s.openComposer);
 	const closeComposer = useForestStore((s) => s.closeComposer);
