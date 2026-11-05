@@ -37,6 +37,15 @@ export function GeneralPanel() {
 				disabled={codemodeEnabled === null || codemodeSaving}
 				onCheckedChange={(enabled) => void setCodemodeEnabled(enabled)}
 			/>
+			<div>
+				<SettingsSwitchRow
+					title={t("settings.codemodeOnly")}
+					hint={t("settings.codemodeOnlyHint")}
+					checked={codemodeOnly === true}
+					disabled={codemodeEnabled !== true || codemodeOnly === null || codemodeSaving}
+					onCheckedChange={(only) => void setCodemodeOnly(only)}
+				/>
+			</div>
 			<SettingsSwitchRow
 				title={t("settings.magicContext")}
 				hint={t("settings.magicContextHint")}
@@ -47,15 +56,6 @@ export function GeneralPanel() {
 			{magicContextEnabled === true && magicContextHfEndpoint !== null && (
 				<HfEndpointField value={magicContextHfEndpoint} onSave={setMagicContextHfEndpoint} />
 			)}
-			<div>
-				<SettingsSwitchRow
-					title={t("settings.codemodeOnly")}
-					hint={t("settings.codemodeOnlyHint")}
-					checked={codemodeOnly === true}
-					disabled={codemodeEnabled !== true || codemodeOnly === null || codemodeSaving}
-					onCheckedChange={(only) => void setCodemodeOnly(only)}
-				/>
-			</div>
 			<div>
 				<div className="flex items-center justify-between gap-4">
 					<div className="min-w-0">
