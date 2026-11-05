@@ -150,7 +150,12 @@ import {
 	writeCodemodeOnly,
 } from "./settings/codemode";
 import { LoginService } from "./settings/login";
-import { readMagicContextEnabled, writeMagicContextEnabled } from "./settings/magic-context";
+import {
+	readMagicContextEnabled,
+	readMagicContextHfEndpoint,
+	writeMagicContextEnabled,
+	writeMagicContextHfEndpoint,
+} from "./settings/magic-context";
 import { ModelPrefsService } from "./settings/model-prefs";
 import { makeQuotaService } from "./settings/quota";
 import { SettingsService } from "./settings/settings";
@@ -2637,8 +2642,14 @@ export class PiBackend {
 	}
 
 	/** Magic Context 开关（agentDir/magic-context.json，缺省关）；内置扩展列表在新会话构建时读取 */
-	getMagicContextConfig(): { enabled: boolean } {
-		return { enabled: readMagicContextEnabled(getAgentDir()) };
+	getMagicContextConfig(): { enabled: boolean; hfEndpoint: string } {
+		return {
+			enabled: readMagicContextEnabled(getAgentDir()),
+			hfEndpoint: readMagicContextHfEndpoint(getAgentDir()),
+		};
+	}
+	setMagicContextHfEndpoint(endpoint: string): Promise<string> {
+		return writeMagicContextHfEndpoint(getAgentDir(), endpoint);
 	}
 	async setMagicContextEnabled(enabled: boolean): Promise<void> {
 		await writeMagicContextEnabled(getAgentDir(), enabled);

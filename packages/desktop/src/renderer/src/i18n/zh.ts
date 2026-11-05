@@ -681,6 +681,10 @@ export const zh = {
 		codemode: "Code Mode",
 		codemodeOnly: "Code Mode 独占模式",
 		magicContext: "跨会话记忆（Magic Context）",
+		magicContextMirror: "嵌入模型下载镜像",
+		magicContextMirrorHint:
+			"语义搜索要先下载嵌入模型。直连 huggingface.co 不通时可填镜像，如 https://hf-mirror.com；留空用官方源。新建会话后生效。",
+		saved: "已保存",
 		magicContextHint:
 			"在会话之间保留项目记忆，并在后台用模型压缩旧对话、整理记忆（会额外消耗 token）。默认关闭，新建会话后生效；数据存在 ~/.local/share/cortexkit。",
 		codemodeOnlyHint:

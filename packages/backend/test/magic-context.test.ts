@@ -9,13 +9,19 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { builtinExtensions } from "../src/project/builtin-extensions";
+import {
+	applyMagicContextEnv,
+	normalizeHfEndpoint,
+	readMagicContextHfEndpoint,
+	writeMagicContextHfEndpoint,
+} from "../src/settings/magic-context";
 
 /**
  * Magic Context 集成冒烟：在真实 SDK 会话里加载 @cortexkit/pi-magic-context。
  * XDG_* 指向临时目录，扩展的配置/数据库/日志都落在这里，不碰用户的 ~/.config 与 ~/.local/share。
  */
 const saved: Record<string, string | undefined> = {};
-const ENV = ["XDG_CONFIG_HOME", "XDG_DATA_HOME", "MAGIC_CONTEXT_LOG_PATH"] as const;
+const ENV = ["XDG_CONFIG_HOME", "XDG_DATA_HOME", "MAGIC_CONTEXT_LOG_PATH", "HF_ENDPOINT"] as const;
 
 beforeEach(() => {
 	for (const key of ENV) saved[key] = process.env[key];
@@ -79,5 +85,32 @@ describe("Magic Context 内置集成", () => {
 		} finally {
 			session.dispose();
 		}
+	});
+});
+
+describe("Magic Context 嵌入模型镜像", () => {
+	it("只接受 http(s) 绝对地址，去掉末尾斜杠，空串表示清除", () => {
+		expect(normalizeHfEndpoint(" https://hf-mirror.com/ ")).toBe("https://hf-mirror.com");
+		expect(normalizeHfEndpoint("")).toBe("");
+		expect(() => normalizeHfEndpoint("hf-mirror.com")).toThrow();
+		expect(() => normalizeHfEndpoint("file:///etc")).toThrow();
+	});
+
+	it("保存后写入 HF_ENDPOINT；清除时只撤销自己设的值", async () => {
+		const { agentDir } = sandbox();
+		delete process.env.HF_ENDPOINT;
+		await writeMagicContextHfEndpoint(agentDir, "https://hf-mirror.com/");
+		expect(readMagicContextHfEndpoint(agentDir)).toBe("https://hf-mirror.com");
+		expect(process.env.HF_ENDPOINT).toBe("https://hf-mirror.com");
+		await writeMagicContextHfEndpoint(agentDir, "");
+		expect(readMagicContextHfEndpoint(agentDir)).toBe("");
+		expect(process.env.HF_ENDPOINT).toBeUndefined();
+	});
+
+	it("未配置镜像时不覆盖用户自己的 HF_ENDPOINT", () => {
+		const { agentDir } = sandbox();
+		process.env.HF_ENDPOINT = "https://user.example";
+		applyMagicContextEnv(agentDir);
+		expect(process.env.HF_ENDPOINT).toBe("https://user.example");
 	});
 });

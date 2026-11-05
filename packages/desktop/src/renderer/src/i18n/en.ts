@@ -732,6 +732,10 @@ export const en: Messages = {
 			other: "No refresh needed",
 		},
 		magicContext: "Cross-session memory (Magic Context)",
+		magicContextMirror: "Embedding model mirror",
+		magicContextMirrorHint:
+			"Semantic search downloads an embedding model first. If huggingface.co is unreachable, enter a mirror such as https://hf-mirror.com; leave empty for the official source. Applies to new sessions.",
+		saved: "Saved",
 		magicContextHint:
 			"Keeps project memory across sessions and uses a model in the background to compress old turns and curate memories (uses extra tokens). Off by default; applies to new sessions. Data lives in ~/.local/share/cortexkit.",
 		codemodeHint:

@@ -7,7 +7,7 @@ import {
 	getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import { readCodemodeConfig } from "../settings/codemode";
-import { readMagicContextEnabled } from "../settings/magic-context";
+import { applyMagicContextEnv, readMagicContextEnabled } from "../settings/magic-context";
 
 /**
  * 官方内置扩展（照抄 CLI 侧元数据，spec §4.1）—— 不要自己发明字段：
@@ -29,8 +29,10 @@ export function builtinExtensions(deps: {
 					{
 						name: "magic-context",
 						// 懒加载：包体 10MB，关闭时不应拖慢启动；默认导出即标准 ExtensionFactory
-						factory: async (pi: Parameters<ExtensionFactory>[0]) =>
-							(await import("@cortexkit/pi-magic-context")).default(pi),
+						factory: async (pi: Parameters<ExtensionFactory>[0]) => {
+							applyMagicContextEnv(agentDir);
+							return (await import("@cortexkit/pi-magic-context")).default(pi);
+						},
 					},
 				]
 			: []),

@@ -60,6 +60,8 @@ interface SettingsStore {
 	channelWatchEnabled: boolean | null;
 	/** Magic Context 跨会话记忆开关；null = 尚未读到 */
 	magicContextEnabled: boolean | null;
+	/** 嵌入模型下载镜像（HF_ENDPOINT）；"" = 官方源，null = 尚未读到 */
+	magicContextHfEndpoint: string | null;
 	codemodeEnabled: boolean | null;
 	codemodeOnly: boolean | null;
 	codemodeSaving: boolean;
@@ -103,6 +105,8 @@ interface SettingsStore {
 	setSubagentPreferBuiltin: (enabled: boolean) => Promise<void>;
 	setChannelWatchEnabled: (enabled: boolean) => Promise<void>;
 	setMagicContextEnabled: (enabled: boolean) => Promise<void>;
+	/** 保存镜像地址；校验失败抛错（调用方显示），成功回写规范化后的值 */
+	setMagicContextHfEndpoint: (endpoint: string) => Promise<void>;
 	setCodemodeEnabled: (enabled: boolean) => Promise<void>;
 	setCodemodeOnly: (only: boolean) => Promise<void>;
 	refreshLanStatus: () => Promise<void>;
@@ -384,7 +388,7 @@ function createSettingsStore(environment: EnvironmentRef) {
 				.catch(() => {});
 			void getExecutionApi(environment)
 				.getMagicContextConfig()
-				.then((mc) => set({ magicContextEnabled: mc.enabled }))
+				.then((mc) => set({ magicContextEnabled: mc.enabled, magicContextHfEndpoint: mc.hfEndpoint }))
 				.catch(() => {});
 		};
 		const loadModelsData = async (mode: "local" | "mutation"): Promise<void> => {
@@ -446,6 +450,7 @@ function createSettingsStore(environment: EnvironmentRef) {
 			permissionGateOff: null,
 			channelWatchEnabled: null,
 			magicContextEnabled: null,
+			magicContextHfEndpoint: null,
 			codemodeEnabled: null,
 			codemodeOnly: null,
 			codemodeSaving: false,
@@ -512,6 +517,11 @@ function createSettingsStore(environment: EnvironmentRef) {
 						error: error instanceof Error ? error.message : String(error),
 					});
 				}
+			},
+
+			setMagicContextHfEndpoint: async (endpoint) => {
+				const saved = await getExecutionApi(environment).setMagicContextHfEndpoint({ endpoint });
+				set({ magicContextHfEndpoint: saved });
 			},
 
 			setChannelWatchEnabled: async (enabled) => {

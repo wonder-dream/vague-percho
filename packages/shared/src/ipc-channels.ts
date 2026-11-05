@@ -776,7 +776,16 @@ export const SETTINGS_CHANNELS = {
 		"mutation",
 	)<{ mode: CacheWarmingMode }, CacheWarmingInfo>({ mode: input.oneOf(...CACHE_WARMING_MODES) }),
 	/** Magic Context（跨会话记忆，内置扩展）开关；默认关闭，新会话生效 */
-	getMagicContextConfig: ch("magicContext:getConfig", "environment", "read")<void, { enabled: boolean }>(),
+	getMagicContextConfig: ch("magicContext:getConfig", "environment", "read")<
+		void,
+		{ enabled: boolean; hfEndpoint: string }
+	>(),
+	/** 嵌入模型下载镜像（HF_ENDPOINT）；空串清除；返回规范化后的地址 */
+	setMagicContextHfEndpoint: ch(
+		"magicContext:setHfEndpoint",
+		"environment",
+		"mutation",
+	)<{ endpoint: string }, string>({ endpoint: input.text }),
 	setMagicContextEnabled: ch(
 		"magicContext:setEnabled",
 		"environment",
