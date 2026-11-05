@@ -24,6 +24,7 @@ import { selectActiveCwd } from "../../lib/active-cwd";
 import { prefersReducedMotion, useListShift } from "../../lib/use-list-shift";
 import { useWorkspaceRemoval } from "../../lib/workspace-actions";
 import { COMPOSER_FOCUS_EVENT } from "../../stores/drafts";
+import { useForestStore } from "../../stores/forest";
 import { useProjectsStore } from "../../stores/projects";
 import {
 	resolveWorkspaceSessions,
@@ -34,7 +35,7 @@ import { useSessionsStore } from "../../stores/sessions";
 import { useTranscriptStore } from "../../stores/transcript";
 import { useUiStore } from "../../stores/ui";
 import { useUiPreferencesStore } from "../../stores/ui-preferences";
-import { CloseIcon, DiffIcon, PanelLeftIcon, PinIcon, PlusIcon } from "../icons";
+import { CloseIcon, DiffIcon, PanelLeftIcon, PinIcon, PlusIcon, TreesIcon } from "../icons";
 import { ContextMenu, type ContextMenuItem } from "../ui/ContextMenu";
 import type { MenuAnchor } from "../ui/place-menu";
 import { RenamePopover } from "./RenamePopover";
@@ -241,6 +242,8 @@ export function SessionTabBar() {
 	const cwd = useSessionsStore(selectActiveCwd);
 	const diffSidebarOpen = useUiStore((s) => s.diffSidebarOpen);
 	const toggleDiffSidebar = useUiStore((s) => s.toggleDiffSidebar);
+	const forestOpen = useForestStore((s) => s.open);
+	const toggleForest = useForestStore((s) => s.toggle);
 	const sidebarCollapsed = useUiPreferencesStore((s) => s.sidebarCollapsed);
 	const toggleSidebarCollapsed = useUiPreferencesStore((s) => s.toggleSidebarCollapsed);
 	const [activeId, setActiveId] = useState<string | null>(null);
@@ -436,6 +439,20 @@ export function SessionTabBar() {
 				aria-label={cwd ? t("tabbar.newSession") : t("tabbar.pickProjectFirst")}
 			>
 				<PlusIcon size={18} />
+			</button>
+			{/* 森林工作台开关：中间区域在对话 / 会话地图之间切换 */}
+			<button
+				type="button"
+				className={`no-drag relative shrink-0 rounded-lg p-1.5 transition-colors ${
+					forestOpen ? "bg-hover text-ink" : "text-ink-dim hover:bg-hover hover:text-ink"
+				}`}
+				onClick={toggleForest}
+				data-forest-toggle=""
+				aria-pressed={forestOpen}
+				aria-label={t("forest.toggle")}
+				title={t("forest.toggle")}
+			>
+				<TreesIcon size={16} />
 			</button>
 			{/* diff 侧栏开关：新会话按钮之后，active 态底色区分 */}
 			<button

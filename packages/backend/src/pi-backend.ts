@@ -31,6 +31,7 @@ import type {
 	ExtensionDialogRespond,
 	ExtensionEditorTextEvent,
 	ExtensionNotifyEvent,
+	ForestGraph,
 	ImageInput,
 	LoadedResources,
 	LoginEventPayload,
@@ -102,6 +103,7 @@ import {
 import { slimBulkyEvent, slimMessageUpdate } from "./session/event-slim";
 import { ExtensionDialogHost } from "./session/extension-dialog-host";
 import { SessionFileOperations } from "./session/file-operations";
+import { loadForestGraph } from "./session/forest";
 import { type SelectedHistory, SessionHistoryPager } from "./session/history-pager";
 import { SessionHydrationGate } from "./session/hydration-gate";
 import { LiveTranscript } from "./session/live-transcript";
@@ -1388,6 +1390,18 @@ export class PiBackend {
 		return (await SessionManager.list(target))
 			.filter((info) => !activeIds.has(info.id))
 			.map((info) => sessionInfoToMeta(info, { cwdFallback: target, active: false }));
+	}
+
+	/**
+	 * 森林工作台：列该目录全部会话文件（含活跃会话，排除 subagent 产物）并只读投影。
+	 * 活跃会话读的是已落盘内容；流式中的半截回复不在图上，turn 结束后由 renderer 刷新。
+	 */
+	async getForestGraph(cwd: string): Promise<ForestGraph> {
+		this.options.localSessionPaths?.assertCwd(cwd);
+		const paths = (await SessionManager.list(cwd))
+			.filter((info) => !isSubagentSessionPath(info.path))
+			.map((info) => info.path);
+		return loadForestGraph(cwd, paths);
 	}
 
 	/** 跨全部项目目录枚举会话（项目管理页用，含活跃会话） */

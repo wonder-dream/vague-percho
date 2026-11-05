@@ -6,6 +6,7 @@ export * from "./environment";
 export * from "./environment-ui-state";
 export * from "./errors";
 export * from "./extension-dialog";
+export * from "./forest";
 export * from "./ipc";
 export * from "./ipc-channels";
 export * from "./lan";

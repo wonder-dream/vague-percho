@@ -65,6 +65,68 @@ export function MoonIcon({ size = 14, className }: IconProps) {
 	);
 }
 
+/** 森林工作台入口（lucide trees） */
+export function TreesIcon({ size = 14, className }: IconProps) {
+	return (
+		<svg
+			className={className}
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			{...strokeProps}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z" />
+			<path d="M7 16v6" />
+			<path d="M13 19v3" />
+			<path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5" />
+		</svg>
+	);
+}
+
+/** 森林：重新整理布局（lucide layout-grid） */
+export function LayoutGridIcon({ size = 14, className }: IconProps) {
+	return (
+		<svg
+			className={className}
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			{...strokeProps}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<rect width="7" height="7" x="3" y="3" rx="1" />
+			<rect width="7" height="7" x="14" y="3" rx="1" />
+			<rect width="7" height="7" x="14" y="14" rx="1" />
+			<rect width="7" height="7" x="3" y="14" rx="1" />
+		</svg>
+	);
+}
+
+/** 森林：定位到当前会话（lucide locate-fixed） */
+export function LocateIcon({ size = 14, className }: IconProps) {
+	return (
+		<svg
+			className={className}
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			{...strokeProps}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M2 12h3M19 12h3M12 2v3M12 19v3" />
+			<circle cx="12" cy="12" r="7" />
+			<circle cx="12" cy="12" r="3" />
+		</svg>
+	);
+}
+
 /** 德古拉主题：蝙蝠剪影（lucide 无对应图标，按其 24 栅格/2px 描边风格绘制） */
 export function DraculaIcon({ size = 14, className }: IconProps) {
 	return (

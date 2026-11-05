@@ -8,6 +8,7 @@ import { MessageList } from "./components/chat/MessageList";
 import { SubagentBackButton } from "./components/chat/SubagentBackButton";
 import { TodoPanel } from "./components/chat/TodoPanel";
 import { DiffSidebar } from "./components/diff/DiffSidebar";
+import { ForestView } from "./components/forest/ForestView";
 import { RemoteAttentionBanner } from "./components/remote/RemoteAttentionBanner";
 import { RemoteConnectionDialog } from "./components/remote/RemoteConnectionDialog";
 import { DockSlot } from "./components/session/DockSlot";
@@ -36,6 +37,7 @@ import {
 	syncActiveSession,
 } from "./stores/channel-subscriptions";
 import { startEnvironmentUiPersistence } from "./stores/environment-ui-restore";
+import { useForestStore } from "./stores/forest";
 import { useInteractionStore } from "./stores/interactions";
 import { initRemoteConnectionBridge } from "./stores/remote-connection";
 import { restoreSessionWorkspace } from "./stores/session-workspace-restore";
@@ -136,6 +138,7 @@ export default function App() {
 		useInteractionStore.getState().removeTrust(requestId);
 	};
 
+	const forestOpen = useForestStore((s) => s.open);
 	const bgImage = useThemeStore((s) => s.background.image);
 	const bgDim = useThemeStore((s) => s.background.dim);
 
@@ -155,10 +158,15 @@ export default function App() {
 				<SessionTabBar />
 				<div className="relative flex min-h-0 flex-1">
 					<Sidebar />
+					{forestOpen && (
+						<div className="relative z-[5] flex min-w-0 flex-1 flex-col bg-canvas" data-forest-page="">
+							<ForestView />
+						</div>
+					)}
 					{/* 聊天页容器：会话推/出过渡的动画主体（lib/session-page-slide.ts 认 data-session-page 找它，
 					   用 data-session-id 判定「新内容已上屏」）。顶栏与左栏不在此容器内 ⇒ 导航时保持静态 */}
 					<div
-						className="relative flex min-w-0 flex-1 flex-col"
+						className={`relative min-w-0 flex-1 flex-col ${forestOpen ? "hidden" : "flex"}`}
 						data-session-page=""
 						data-session-id={activeSessionId ?? ""}
 					>
@@ -185,7 +193,7 @@ export default function App() {
 						</main>
 						<DockSlot sessionId={activeSessionId} hideComposer={showEmpty} />
 					</div>
-					<DiffSidebar />
+					{!forestOpen && <DiffSidebar />}
 				</div>
 			</div>
 			{/* 悬浮贡献层：内容列之后、设置弹窗之前（z-20 < z-40，插件层永在弹窗之下） */}
