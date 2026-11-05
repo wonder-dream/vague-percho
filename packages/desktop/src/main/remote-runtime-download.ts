@@ -37,7 +37,8 @@ export function parseRuntimeManifest(input: unknown): RuntimeManifest {
 		if (
 			!item ||
 			item.asset !== asset ||
-			item.url !== `https://github.com/wonder-dream/vague-percho/releases/download/${value.releaseId}/${asset}` ||
+			item.url !==
+				`https://github.com/wonder-dream/vague-percho/releases/download/${value.releaseId}/${asset}` ||
 			!/^[a-f0-9]{64}$/.test(item.sha256) ||
 			!Number.isSafeInteger(item.bytes) ||
 			item.bytes < 1 ||
