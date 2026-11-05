@@ -1,4 +1,4 @@
-appId: io.github.jaxton07.percho
+appId: io.github.wonder-dream.vague-percho
 productName: Percho
 extraMetadata:
   releaseChannel: stable
@@ -79,5 +79,5 @@ nsis:
   allowToChangeInstallationDirectory: true
 publish:
   provider: github
-  owner: Jaxton07
-  repo: percho
+  owner: wonder-dream
+  repo: vague-percho

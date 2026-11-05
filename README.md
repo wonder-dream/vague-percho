@@ -9,11 +9,11 @@
   Highly customizable desktop GUI for the <a href="https://www.npmjs.com/package/@earendil-works/pi-coding-agent">Pi coding agent</a> — the same engine as the Pi CLI, in a clean visual interface. Multi-session chat, visual tool approvals, built-in subagents, UI plugins, and custom themes.
 </p>
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Jaxton07/percho?style=flat-square" alt="License"></a>
-  <a href="https://github.com/Jaxton07/percho/releases"><img src="https://img.shields.io/github/v/release/Jaxton07/percho?style=flat-square" alt="Release"></a>
-  <a href="https://github.com/Jaxton07/percho/releases"><img src="https://img.shields.io/github/downloads/Jaxton07/percho/total?style=flat-square" alt="Downloads"></a>
-  <a href="https://github.com/Jaxton07/percho/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Jaxton07/percho/ci.yml?style=flat-square" alt="CI"></a>
-  <a href="https://github.com/Jaxton07/percho"><img src="https://img.shields.io/github/stars/Jaxton07/percho?style=flat-square" alt="Stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/wonder-dream/vague-percho?style=flat-square" alt="License"></a>
+  <a href="https://github.com/wonder-dream/vague-percho/releases"><img src="https://img.shields.io/github/v/release/wonder-dream/vague-percho?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/wonder-dream/vague-percho/releases"><img src="https://img.shields.io/github/downloads/wonder-dream/vague-percho/total?style=flat-square" alt="Downloads"></a>
+  <a href="https://github.com/wonder-dream/vague-percho/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/wonder-dream/vague-percho/ci.yml?style=flat-square" alt="CI"></a>
+  <a href="https://github.com/wonder-dream/vague-percho"><img src="https://img.shields.io/github/stars/wonder-dream/vague-percho?style=flat-square" alt="Stars"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22.19-339933?logo=nodedotjs&style=flat-square" alt="Node >=22.19">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=flat-square" alt="macOS | Windows | Linux">
 </p>
@@ -65,7 +65,7 @@ And for those who prefer a GUI over a TUI:
 
 ## Download
 
-Prebuilt installers are published on the [Releases](https://github.com/Jaxton07/percho/releases) page.
+Prebuilt installers are published on the [Releases](https://github.com/wonder-dream/vague-percho/releases) page.
 
 | Platform | Download |
 | --- | --- |

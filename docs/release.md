@@ -22,7 +22,7 @@ git status --short
 git fetch origin main --tags
 release_sha=$(git rev-parse origin/main)
 gh run list --workflow ci.yml --branch main --commit "$release_sha" --limit 1
-gh api repos/Jaxton07/percho/releases/latest --jq .tag_name
+gh api repos/wonder-dream/vague-percho/releases/latest --jq .tag_name
 ```
 
 main CI 尚在重复打包时可并行启动 Release；无需另触发或等待一次 main 打包，但 Release 自己的检查和正式验包不能省略。
@@ -33,7 +33,7 @@ main CI 尚在重复打包时可并行启动 Release；无需另触发或等待�
 previous_tag=v0.6.7
 git log --oneline "${previous_tag}..${release_sha}"
 git ls-remote --tags origin "refs/tags/${release_tag}"
-gh api --paginate repos/Jaxton07/percho/releases --jq ".[] | select(.tag_name == \"${release_tag}\") | {id, tag_name, draft, target_commitish}"
+gh api --paginate repos/wonder-dream/vague-percho/releases --jq ".[] | select(.tag_name == \"${release_tag}\") | {id, tag_name, draft, target_commitish}"
 ```
 
 标签和发行均应不存在。已有记录时先核对来源与状态，按下文恢复，不强制覆盖。查重必须包含草稿：按标签查询返回404，不足以证明不存在尚未关联远端标签的草稿。认证或网络失败也不能当作“不存在”。
@@ -80,7 +80,7 @@ gh run watch "$release_run_id" --interval 30 --exit-status
 workflow 全部成功后做一次公开侧核对，不再次下载整套安装包重复验包：
 
 ```bash
-gh api "repos/Jaxton07/percho/releases/tags/${release_tag}" \
+gh api "repos/wonder-dream/vague-percho/releases/tags/${release_tag}" \
   > "$release_dir/published.json"
 gh release download "$release_tag" --dir "$release_dir/verify" \
   --pattern 'release-*.json' --pattern 'runtime-linux-*.json' \
@@ -89,7 +89,7 @@ gh release download "$release_tag" --dir "$release_dir/verify" \
 
 逐项确认：
 
-- `published.json` 的标签、目标提交和正文正确，`draft=false`；正式版 `prerelease=false`，且 `/repos/Jaxton07/percho/releases/latest` 返回本版。Beta/RC 则确认 prerelease 且未改变正式版 latest。
+- `published.json` 的标签、目标提交和正文正确，`draft=false`；正式版 `prerelease=false`，且 `/repos/wonder-dream/vague-percho/releases/latest` 返回本版。Beta/RC 则确认 prerelease 且未改变正式版 latest。
 - 三平台 `release-*.json` 为本次版本、同一源码提交，`passed=true`、`mode=release`；两份运行包元数据也指向同版同提交。
 - 每份报告列出的资产都已上传，GitHub 资产的 `size`、`digest` 与报告中的字节数、SHA256对应；两份 SSH 归档同样与各自元数据一致。摘要缺失或不一致时再下载相关资产取证，不把缺失当作通过。
 - 正式版的 `latest.yml`、`latest-mac.yml`、`latest-linux.yml` 均指向本版，报告列出的安装包、更新文件、摘要和运行包齐全。预期资产以 [整包校验逻辑](../scripts/release/bundle.mjs) 为准，不硬编码资产总数。
@@ -101,7 +101,7 @@ gh release download "$release_tag" --dir "$release_dir/verify" \
 - **构建或验收失败**：用 `gh run view "$release_run_id" --log-failed` 定位原因。相同提交、相同草稿可用 `gh run rerun "$release_run_id" --failed` 重试；不要例行删除草稿或标签。修复代码需要新提交和新版本，重跑旧标签不会取得新代码。
 - **上传失败**：保留同提交的草稿，按发布脚本恢复。不要中断正在上传的 publish 任务，不手工公开半套资产，也不把别的提交的产物补进来。
 - **已经公开**：发布脚本拒绝覆盖公开发行，不能整条重跑以替换安装包或更新文件；二进制问题发新版本。
-- **只有说明需要修正**：用 `gh release edit "$release_tag" --notes-file "$release_dir/notes.md` 更新正文。正式版再从运行详情找到 website 的 job ID，保存为 `website_job_id`，用 `gh api --method POST "repos/Jaxton07/percho/actions/jobs/${website_job_id}/rerun"` 单独刷新官网，不重跑 publish。
+- **只有说明需要修正**：用 `gh release edit "$release_tag" --notes-file "$release_dir/notes.md` 更新正文。正式版再从运行详情找到 website 的 job ID，保存为 `website_job_id`，用 `gh api --method POST "repos/wonder-dream/vague-percho/actions/jobs/${website_job_id}/rerun"` 单独刷新官网，不重跑 publish。
 - **只有官网刷新失败**：单独重跑 website job。不要因此重新发包；hook未配置则记录未触发，不宣称官网已更新。
 
 ## 只要内测包时

@@ -28,7 +28,7 @@ import { ackQuitDialog, setQuitGuard } from "../window";
 import { registerInvokeHandlers } from "./invoke";
 
 /** 项目仓库地址（帮助跳转 + 关于页） */
-const REPO_URL = "https://github.com/Jaxton07/percho";
+const REPO_URL = "https://github.com/wonder-dream/vague-percho";
 
 /** Native file actions must never interpret a remote UI reference as a local path. */
 function localDirectory(cwd: string | null): string | null {

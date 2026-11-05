@@ -185,7 +185,7 @@ try {
 		asset,
 		bytes: bytes.length,
 		sha256,
-		url: `https://github.com/Jaxton07/percho/releases/download/${releaseId}/${asset}`,
+		url: `https://github.com/wonder-dream/vague-percho/releases/download/${releaseId}/${asset}`,
 	};
 	await rename(archive, join(out, asset));
 	const metadataFile = join(work, "runtime.json");

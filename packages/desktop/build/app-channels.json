@@ -1,19 +1,19 @@
 {
 	"stable": {
 		"name": "Percho",
-		"appId": "io.github.jaxton07.percho",
+		"appId": "io.github.wonder-dream.vague-percho",
 		"badge": "",
 		"badgeColor": ""
 	},
 	"beta": {
 		"name": "Percho Beta",
-		"appId": "io.github.jaxton07.percho.beta",
+		"appId": "io.github.wonder-dream.vague-percho.beta",
 		"badge": "BETA",
 		"badgeColor": "#c47417"
 	},
 	"dev": {
 		"name": "Percho Dev",
-		"appId": "io.github.jaxton07.percho.dev",
+		"appId": "io.github.wonder-dream.vague-percho.dev",
 		"badge": "DEV",
 		"badgeColor": "#5271c4"
 	}

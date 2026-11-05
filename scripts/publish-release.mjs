@@ -64,7 +64,7 @@ if (process.argv[3] !== "--publish") {
 			"--title",
 			release.tag,
 			"--notes",
-			`Version ${release.version}\nSource: ${release.sourceCommit}\n\nDesktop packages and Linux SSH runtimes were verified together. macOS packages use ad-hoc signing and are not notarized. Beta keeps separate application data and is installed manually.`,
+			`Version ${release.version}\nSource: ${release.sourceCommit}\n\nDesktop packages and Linux SSH runtimes were verified together. Beta keeps separate application data and is installed manually.`,
 			...(release.prerelease ? ["--prerelease"] : []),
 		]);
 	await run("gh", [

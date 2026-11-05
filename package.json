@@ -7,9 +7,9 @@
 	"author": "Jaxton07",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/Jaxton07/percho.git"
+		"url": "git+https://github.com/wonder-dream/vague-percho.git"
 	},
-	"bugs": "https://github.com/Jaxton07/percho/issues",
+	"bugs": "https://github.com/wonder-dream/vague-percho/issues",
 	"workspaces": [
 		"packages/*"
 	],

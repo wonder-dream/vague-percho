@@ -44,14 +44,13 @@ async function runtimes(directory, plan = release) {
 			node: nodePolicy.node,
 			bytes: bytes.length,
 			sha256: hash(bytes),
-			url: `https://github.com/Jaxton07/percho/releases/download/${plan.tag}/${asset}`,
+			url: `https://github.com/wonder-dream/vague-percho/releases/download/${plan.tag}/${asset}`,
 		});
 	}
 }
 async function bundle(directory, plan = release) {
 	await runtimes(directory, plan);
 	for (const [platform, architectures] of [
-		["darwin", ["arm64", "x64"]],
 		["win32", ["x64"]],
 		["linux", ["x64"]],
 	]) {
@@ -150,7 +149,7 @@ test("runtime manifest requires both architectures, exact version/source and int
 test("complete Beta and stable bundles validate; incomplete/tampered bundles are blocked", async (t) => {
 	const directory = await fixture(t);
 	await bundle(directory);
-	assert.ok((await verifyBundle(directory, release)).includes("percho-beta-0.6.6-beta.1-mac-x64.dmg"));
+	assert.ok((await verifyBundle(directory, release)).includes("percho-beta-0.6.6-beta.1-windows-x64.exe"));
 	await rm(join(directory, "release-win32.json"));
 	await assert.rejects(verifyBundle(directory, release));
 	await bundle(directory);
@@ -158,14 +157,14 @@ test("complete Beta and stable bundles validate; incomplete/tampered bundles are
 	await assert.rejects(verifyBundle(directory, release));
 	const stable = releasePlan("0.6.6", release.sourceCommit);
 	await bundle(directory, stable);
-	assert.ok((await verifyBundle(directory, stable)).includes("latest-mac.yml"));
-	await rm(join(directory, "latest.yml"));
+	assert.ok((await verifyBundle(directory, stable)).includes("latest.yml"));
+	await rm(join(directory, "latest-linux.yml"));
 	await assert.rejects(verifyBundle(directory, stable));
 });
 test("failed, wrong-source and unpacked reports cannot be published; paths cannot escape bundle", async (t) => {
 	const directory = await fixture(t);
 	await bundle(directory);
-	const path = join(directory, "release-darwin.json");
+	const path = join(directory, "release-linux.json");
 	const report = JSON.parse(await readFile(path, "utf8"));
 	for (const change of [
 		{ passed: false },
