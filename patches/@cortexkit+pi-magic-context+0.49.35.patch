@@ -1,0 +1,40 @@
+diff --git a/node_modules/@cortexkit/pi-magic-context/dist/index.js b/node_modules/@cortexkit/pi-magic-context/dist/index.js
+index 2ce7359..5bb6255 100644
+--- a/node_modules/@cortexkit/pi-magic-context/dist/index.js
++++ b/node_modules/@cortexkit/pi-magic-context/dist/index.js
+@@ -20367,6 +20367,17 @@ function defaultResolvePiPackageJson(from) {
+       return require_.resolve(`${PI_CODING_AGENT_MODULE}/package.json`);
+     } catch {}
+   }
++  // percho: SDK >= 1.x does not export ./package.json, so the resolve above always throws.
++  // Walk the module search paths directly (same as Percho's own sdkPackage()).
++  for (const requester of requesters) {
++    try {
++      const require_ = requester ? createRequire(requester.startsWith("file:") ? requester : resolvePath(requester)) : createRequire(import.meta.url);
++      for (const location of require_.resolve.paths(PI_CODING_AGENT_MODULE) ?? []) {
++        const candidate = join10(location, PI_CODING_AGENT_MODULE, "package.json");
++        if (existsSync10(candidate)) return candidate;
++      }
++    } catch {}
++  }
+   return null;
+ }
+ function resolveBundledPiCli(from, fs, resolvePackageJson, checkedPaths) {
+@@ -20411,6 +20422,9 @@ function resolveWindowsPiCommand(env, fs) {
+   return { path: null, extension: null, checkedPaths };
+ }
+ function isGenericRuntimeExecutable(execPath) {
++  // percho: inside Electron the host binary is the desktop app; children must run the bundled SDK CLI
++  // through ELECTRON_RUN_AS_NODE (see the spawn env below), never relaunch the app itself.
++  if (process.versions.electron) return true;
+   return /^(node(?:js)?\d*|bun)(\.exe)?$/.test(basename(execPath).toLowerCase());
+ }
+ function formatCheckedPaths(checkedPaths) {
+@@ -21011,6 +21025,7 @@ class PiSubagentRunner {
+           cwd: options.cwd,
+           env: {
+             ...parentEnv,
++            ...process.versions.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {},
+             [MAGIC_CONTEXT_PI_SUBAGENT_ENV]: "1",
+             MAGIC_CONTEXT_SUBAGENT_PROMPT_FILE: systemPromptPath,
+             [HISTORIAN_CACHE_TAIL_ENV2]: /^(magic-context-)?historian(?:-recomp)?$/.test(options.agent) && options.accountingSubagent !== "historian_editor" ? options.cacheTail : undefined,

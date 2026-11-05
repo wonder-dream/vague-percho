@@ -149,6 +149,7 @@ import {
 	writeCodemodeEnabled,
 	writeCodemodeOnly,
 } from "./settings/codemode";
+import { readMagicContextEnabled, writeMagicContextEnabled } from "./settings/magic-context";
 import { LoginService } from "./settings/login";
 import { ModelPrefsService } from "./settings/model-prefs";
 import { makeQuotaService } from "./settings/quota";
@@ -2633,6 +2634,14 @@ export class PiBackend {
 
 	async setCodemodeEnabled(enabled: boolean): Promise<void> {
 		await writeCodemodeEnabled(getAgentDir(), enabled);
+	}
+
+	/** Magic Context 开关（agentDir/magic-context.json，缺省关）；内置扩展列表在新会话构建时读取 */
+	getMagicContextConfig(): { enabled: boolean } {
+		return { enabled: readMagicContextEnabled(getAgentDir()) };
+	}
+	async setMagicContextEnabled(enabled: boolean): Promise<void> {
+		await writeMagicContextEnabled(getAgentDir(), enabled);
 	}
 
 	/** channel-watch 总开关（设置 UI 用；键在 ~/.percho/agent/settings.json，缺省=开） */

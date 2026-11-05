@@ -731,6 +731,9 @@ export const en: Messages = {
 			limit: "Warming time limit reached",
 			other: "No refresh needed",
 		},
+		magicContext: "Cross-session memory (Magic Context)",
+		magicContextHint:
+			"Keeps project memory across sessions and uses a model in the background to compress old turns and curate memories (uses extra tokens). Off by default; applies to new sessions. Data lives in ~/.local/share/cortexkit.",
 		codemodeHint:
 			"Let AI combine tool calls in scripts, run them in parallel, and filter results. On by default; applies to new sessions or after restarting the app.",
 		channelWatchHint:

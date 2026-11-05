@@ -20,6 +20,8 @@ export function GeneralPanel() {
 	const setLanguage = useI18nStore((s) => s.setLanguage);
 	const channelWatchEnabled = useSettingsStore((s) => s.channelWatchEnabled);
 	const setChannelWatchEnabled = useSettingsStore((s) => s.setChannelWatchEnabled);
+	const magicContextEnabled = useSettingsStore((s) => s.magicContextEnabled);
+	const setMagicContextEnabled = useSettingsStore((s) => s.setMagicContextEnabled);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -31,6 +33,13 @@ export function GeneralPanel() {
 				checked={codemodeEnabled === true}
 				disabled={codemodeEnabled === null || codemodeSaving}
 				onCheckedChange={(enabled) => void setCodemodeEnabled(enabled)}
+			/>
+			<SettingsSwitchRow
+				title={t("settings.magicContext")}
+				hint={t("settings.magicContextHint")}
+				checked={magicContextEnabled === true}
+				disabled={magicContextEnabled === null}
+				onCheckedChange={(enabled) => void setMagicContextEnabled(enabled)}
 			/>
 			<div>
 				<SettingsSwitchRow

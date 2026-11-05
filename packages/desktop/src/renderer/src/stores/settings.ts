@@ -58,6 +58,8 @@ interface SettingsStore {
 	permissionGateOff: boolean | null;
 	/** channel-watch 跨会话频道唤醒开关（null = 未加载） */
 	channelWatchEnabled: boolean | null;
+	/** Magic Context 跨会话记忆开关；null = 尚未读到 */
+	magicContextEnabled: boolean | null;
 	codemodeEnabled: boolean | null;
 	codemodeOnly: boolean | null;
 	codemodeSaving: boolean;
@@ -100,6 +102,7 @@ interface SettingsStore {
 	/** 内置 subagent 执行器优先（新会话生效） */
 	setSubagentPreferBuiltin: (enabled: boolean) => Promise<void>;
 	setChannelWatchEnabled: (enabled: boolean) => Promise<void>;
+	setMagicContextEnabled: (enabled: boolean) => Promise<void>;
 	setCodemodeEnabled: (enabled: boolean) => Promise<void>;
 	setCodemodeOnly: (only: boolean) => Promise<void>;
 	refreshLanStatus: () => Promise<void>;
@@ -379,6 +382,10 @@ function createSettingsStore(environment: EnvironmentRef) {
 				.getChannelWatchConfig()
 				.then((cw) => set({ channelWatchEnabled: cw.enabled }))
 				.catch(() => {});
+			void getExecutionApi(environment)
+				.getMagicContextConfig()
+				.then((mc) => set({ magicContextEnabled: mc.enabled }))
+				.catch(() => {});
 		};
 		const loadModelsData = async (mode: "local" | "mutation"): Promise<void> => {
 			void readPrefs().catch((error) =>
@@ -438,6 +445,7 @@ function createSettingsStore(environment: EnvironmentRef) {
 			refreshing: false,
 			permissionGateOff: null,
 			channelWatchEnabled: null,
+			magicContextEnabled: null,
 			codemodeEnabled: null,
 			codemodeOnly: null,
 			codemodeSaving: false,
@@ -491,6 +499,19 @@ function createSettingsStore(environment: EnvironmentRef) {
 				if (!published || token === selectorRefreshToken) return;
 				selectorRefreshToken = token;
 				await useSessionsStore.getState().loadModels(environment);
+			},
+
+			setMagicContextEnabled: async (enabled) => {
+				const previous = get().magicContextEnabled;
+				set({ magicContextEnabled: enabled });
+				try {
+					await getExecutionApi(environment).setMagicContextEnabled({ enabled });
+				} catch (error) {
+					set({
+						magicContextEnabled: previous,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
 			},
 
 			setChannelWatchEnabled: async (enabled) => {

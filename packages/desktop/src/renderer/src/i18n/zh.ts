@@ -680,6 +680,9 @@ export const zh = {
 		channelWatch: "跨会话频道协作（channel-watch）",
 		codemode: "Code Mode",
 		codemodeOnly: "Code Mode 独占模式",
+		magicContext: "跨会话记忆（Magic Context）",
+		magicContextHint:
+			"在会话之间保留项目记忆，并在后台用模型压缩旧对话、整理记忆（会额外消耗 token）。默认关闭，新建会话后生效；数据存在 ~/.local/share/cortexkit。",
 		codemodeOnlyHint:
 			"需要开启 Code Mode。支持脚本调用的工具统一通过“组合执行”使用，各工具的权限规则保持不变。默认关闭，新建会话或重启应用后生效。",
 		cacheWarming: "缓存保温",

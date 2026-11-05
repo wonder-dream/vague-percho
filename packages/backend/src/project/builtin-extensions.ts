@@ -1,4 +1,5 @@
-import type { InlineExtension } from "@earendil-works/pi-coding-agent";
+/// <reference path="./magic-context-module.d.ts" />
+import type { ExtensionFactory, InlineExtension } from "@earendil-works/pi-coding-agent";
 import {
 	createCodemodeExtension,
 	createMcpExtension,
@@ -6,6 +7,7 @@ import {
 	getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import { readCodemodeConfig } from "../settings/codemode";
+import { readMagicContextEnabled } from "../settings/magic-context";
 
 /**
  * 官方内置扩展（照抄 CLI 侧元数据，spec §4.1）—— 不要自己发明字段：
@@ -20,11 +22,22 @@ export function builtinExtensions(deps: {
 	openUrl?: (url: string) => void;
 	agentDir?: string;
 }): InlineExtension[] {
+	const agentDir = deps.agentDir ?? getAgentDir();
 	return [
+		...(readMagicContextEnabled(agentDir)
+			? [
+					{
+						name: "magic-context",
+						// 懒加载：包体 10MB，关闭时不应拖慢启动；默认导出即标准 ExtensionFactory
+						factory: async (pi: Parameters<ExtensionFactory>[0]) =>
+							(await import("@cortexkit/pi-magic-context")).default(pi),
+					},
+				]
+			: []),
 		{
 			name: "codemode",
 			factory: createCodemodeExtension({
-				mode: readCodemodeConfig(deps.agentDir ?? getAgentDir()).only ? "only" : "on",
+				mode: readCodemodeConfig(agentDir).only ? "only" : "on",
 			}),
 			builtin: true,
 			replaceable: true,

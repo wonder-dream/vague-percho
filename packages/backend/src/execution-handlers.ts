@@ -113,6 +113,8 @@ export function createExecutionHandlers(
 		getCacheWarming: () => backend.getCacheWarming(),
 		setCacheWarming: ({ mode }) => backend.setCacheWarming(mode),
 		setCodemodeEnabled: ({ enabled }) => backend.setCodemodeEnabled(enabled),
+		getMagicContextConfig: () => backend.getMagicContextConfig(),
+		setMagicContextEnabled: ({ enabled }) => backend.setMagicContextEnabled(enabled),
 		setChannelWatchEnabled: ({ enabled }) => backend.setChannelWatchEnabled(enabled),
 		respondTrust: ({ requestId, answer }) => backend.respondTrust(requestId, answer),
 		searchCatalog: ({ query, type, page }) => backend.packages.searchPackages(query, type, page),

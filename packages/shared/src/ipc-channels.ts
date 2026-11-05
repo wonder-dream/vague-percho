@@ -775,6 +775,13 @@ export const SETTINGS_CHANNELS = {
 		"environment",
 		"mutation",
 	)<{ mode: CacheWarmingMode }, CacheWarmingInfo>({ mode: input.oneOf(...CACHE_WARMING_MODES) }),
+	/** Magic Context（跨会话记忆，内置扩展）开关；默认关闭，新会话生效 */
+	getMagicContextConfig: ch("magicContext:getConfig", "environment", "read")<void, { enabled: boolean }>(),
+	setMagicContextEnabled: ch(
+		"magicContext:setEnabled",
+		"environment",
+		"mutation",
+	)<{ enabled: boolean }, void>({ enabled: input.boolean }),
 	setCodemodeEnabled: ch(
 		"codemode:setEnabled",
 		"environment",

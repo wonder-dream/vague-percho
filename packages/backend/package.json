@@ -13,6 +13,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@cortexkit/pi-magic-context": "0.49.35",
 		"@earendil-works/pi-ai": "1.4.0",
 		"@earendil-works/pi-coding-agent": "1.4.0",
 		"@percho/shared": "*",
