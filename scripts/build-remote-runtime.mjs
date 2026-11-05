@@ -89,7 +89,8 @@ try {
 		target: "node22",
 		outdir: stage,
 		outExtension: { ".js": ".mjs" },
-		external: ["@earendil-works/pi-coding-agent", "@earendil-works/pi-ai"],
+		// Magic Context 只随桌面包分发；SSH 运行时不带它（懒加载的 import 留给运行时，开启时会报加载失败）
+		external: ["@earendil-works/pi-coding-agent", "@earendil-works/pi-ai", "@cortexkit/pi-magic-context"],
 		alias: runtimeBuildAliases(repo, stage),
 		logLevel: "warning",
 	});

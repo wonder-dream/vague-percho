@@ -149,8 +149,8 @@ import {
 	writeCodemodeEnabled,
 	writeCodemodeOnly,
 } from "./settings/codemode";
-import { readMagicContextEnabled, writeMagicContextEnabled } from "./settings/magic-context";
 import { LoginService } from "./settings/login";
+import { readMagicContextEnabled, writeMagicContextEnabled } from "./settings/magic-context";
 import { ModelPrefsService } from "./settings/model-prefs";
 import { makeQuotaService } from "./settings/quota";
 import { SettingsService } from "./settings/settings";
