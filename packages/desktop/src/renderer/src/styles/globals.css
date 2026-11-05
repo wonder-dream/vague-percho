@@ -148,6 +148,61 @@
 	--scrollbar-thumb-hover: #5d5d66;
 }
 
+/* Dracula 配色（https://draculatheme.com/contribute 官方色板）：叠在 data-theme="dark" 上，
+   只改色值不改结构；background #282a36 / current line #44475a / foreground #f8f8f2 / comment #6272a4，
+   强调色 purple #bd93f9，语义色 red/orange/green/cyan 按官方映射。
+   :root 提高优先级：后文还有同为 (0,1,0) 的 [data-theme="dark"] 块（diff 色）会覆盖它。 */
+:root[data-palette="dracula"] {
+	--color-canvas: #282a36;
+	--color-surface: #2f3241;
+	--color-hover: #383a4a;
+	--color-border: #44475a;
+	--color-border-strong: #565a73;
+	--color-bubble: #44475a;
+	--color-user-bubble: var(--color-bubble);
+	--color-ink: #f8f8f2;
+	--color-ink-2: #e2e2dc;
+	--color-ink-dim: #a9b0d2;
+	--color-ink-faint: #6272a4;
+	--color-ink-working: #a9b0d2;
+	--color-on-ink: #282a36;
+	--color-accent: #bd93f9;
+	--color-on-accent: #282a36;
+	--color-skill-reference-bg: #2e4552;
+	--color-skill-reference-ink: #8be9fd;
+	--bar-grad: linear-gradient(96deg, #8be9fd 0%, #bd93f9 52%, #ff79c6 100%);
+	--color-rule: #44475a;
+	--color-update: #2e4552;
+	--color-on-update: #8be9fd;
+	--color-err: #ff5555;
+	--color-warn: #ffb86c;
+	--color-info: #6272a4;
+	--color-ok: #50fa7b;
+	--color-subagent-ok: #50fa7b;
+	--color-subagent-err: #ff5555;
+	--color-switch-off: #565a73;
+	--color-scrim: 40 42 54;
+	--markdown-code-bg: #21222c;
+	--markdown-code-text: #f8f8f2;
+	--markdown-quote-border: #6272a4;
+	--markdown-quote-text: #a9b0d2;
+	--markdown-table-border: #44475a;
+	--markdown-link-decoration: #ff79c6;
+	--markdown-link-hover: #ff92d0;
+	--shimmer-highlight: rgba(248, 248, 242, 0.95);
+	--shadow-soft: 0 0 14px -2px rgba(0, 0, 0, 0.35);
+	--shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.4);
+	--shadow-dialog: 0 12px 40px rgba(0, 0, 0, 0.5);
+	--scrollbar-thumb: #44475a;
+	--scrollbar-thumb-hover: #6272a4;
+	--diff-add: #50fa7b;
+	--diff-add-bg: rgba(80, 250, 123, 0.08);
+	--diff-add-gutter: rgba(80, 250, 123, 0.14);
+	--diff-del: #ff5555;
+	--diff-del-bg: rgba(255, 85, 85, 0.09);
+	--diff-del-gutter: rgba(255, 85, 85, 0.14);
+}
+
 /* 子代理状态：工作中在 80×22 透明区域里放三颗打字点；终态从右向左收成 6px 圆点（左端固定）。
    终态用 Apple 系统绿/红，只作用于子代理，不影响通用 severity / UI 插件状态点。 */
 .subagent-slot {

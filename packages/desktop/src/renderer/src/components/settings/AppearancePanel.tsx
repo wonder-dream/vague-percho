@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useT } from "../../i18n";
 import { backgroundImageUrl, useThemeStore } from "../../stores/theme";
 import { useUiPreferencesStore } from "../../stores/ui-preferences";
-import { ChevronDownIcon, MonitorIcon, MoonIcon, SunIcon } from "../icons";
+import { ChevronDownIcon, DraculaIcon, MonitorIcon, MoonIcon, SunIcon } from "../icons";
 import { SelectionMenu } from "../ui/SelectionMenu";
 import { SettingsSwitchRow } from "./SettingsSwitchRow";
 import { UiPluginsSection } from "./UiPluginsSection";
@@ -79,13 +79,14 @@ function FontSizeSelect({
 	);
 }
 
-const THEME_MODES: ThemeMode[] = ["light", "dark", "system"];
+const THEME_MODES: ThemeMode[] = ["light", "dark", "dracula", "system"];
 const THEME_LABEL_KEYS = {
 	light: "settings.themeLight",
 	dark: "settings.themeDark",
+	dracula: "settings.themeDracula",
 	system: "settings.themeSystem",
 } as const;
-const THEME_ICONS = { light: SunIcon, dark: MoonIcon, system: MonitorIcon };
+const THEME_ICONS = { light: SunIcon, dark: MoonIcon, dracula: DraculaIcon, system: MonitorIcon };
 
 type AppearanceTab = "basics" | "uiPlugins";
 
@@ -119,7 +120,10 @@ function AppearanceBasics() {
 			<div>
 				<h3 className="text-ui-13 font-medium text-ink">{t("settings.theme")}</h3>
 				<p className="mt-0.5 text-ui-11 text-ink-faint">{t("settings.themeHint")}</p>
-				<fieldset className="mt-3 grid min-w-0 grid-cols-3 gap-2" aria-label={t("settings.theme")}>
+				<fieldset
+					className="mt-3 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4"
+					aria-label={t("settings.theme")}
+				>
 					{THEME_MODES.map((m) => {
 						const Icon = THEME_ICONS[m];
 						return (

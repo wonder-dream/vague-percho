@@ -619,6 +619,7 @@ export const zh = {
 		fontSizePresetLarger: "更大",
 		themeLight: "浅色",
 		themeDark: "深色",
+		themeDracula: "德古拉",
 		themeSystem: "跟随系统",
 		background: "背景图片",
 		backgroundHint: "选择一张图片作为应用背景，调节遮罩浓度保证文字可读",

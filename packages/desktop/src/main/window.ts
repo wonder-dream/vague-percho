@@ -83,30 +83,50 @@ export function ackQuitDialog(): void {
 	quitAckTimer = undefined;
 }
 
+/** 解析后的窗口主题：dracula 是深色变体（renderer 仍挂 data-theme="dark"，另加 data-palette） */
+export type ResolvedTheme = "dark" | "light" | "dracula";
+
 /** 窗口启动底色跟随主题，避免深色模式下启动白闪（也是开屏动画的底色）。与 renderer bg-canvas 同色 */
-function windowBackground(theme: "dark" | "light"): string {
-	return theme === "dark" ? "#17171a" : "#fafafa";
+function windowBackground(theme: ResolvedTheme): string {
+	return theme === "dracula" ? "#282a36" : theme === "dark" ? "#17171a" : "#fafafa";
 }
 
-/** 解析保存的主题为明确的深浅色（system 时跟随系统），窗口底色与 ?theme= 传参同源 */
-export function resolveTheme(theme: ThemeMode | undefined): "dark" | "light" {
+/** 解析保存的主题为明确的窗口主题（system 时跟随系统），窗口底色与 ?theme= 传参同源 */
+export function resolveTheme(theme: ThemeMode | undefined): ResolvedTheme {
+	if (theme === "dracula") return "dracula";
 	return theme === "dark" || (theme !== "light" && nativeTheme.shouldUseDarkColors) ? "dark" : "light";
+}
+
+/** Electron nativeTheme 只认 system/light/dark：dracula 按深色处理（滚动条、表单控件等原生部件） */
+function nativeThemeSource(mode: ThemeMode): "system" | "light" | "dark" {
+	return mode === "dracula" ? "dark" : mode;
+}
+
+/** 当前主题模式：nativeTheme.themeSource 丢失 dracula 信息，chrome 同步以此为准 */
+let currentThemeMode: ThemeMode = "system";
+
+/** 设置主题模式（启动恢复/用户切换）：同步原生主题，触发 updated → applyChromeTheme */
+export function setThemeMode(mode: ThemeMode): void {
+	currentThemeMode = mode;
+	const source = nativeThemeSource(mode);
+	if (nativeTheme.themeSource === source) applyChromeTheme();
+	else nativeTheme.themeSource = source;
 }
 
 /**
  * Windows frameless 窗口右上角的系统按钮（最小化/最大化/关闭）覆盖层参数。
  * 颜色与顶栏 bg-canvas 一致保证无色差；height 与顶栏 h-12（48px）对齐让按钮垂直居中。
  */
-function titleBarOverlay(theme: "dark" | "light"): Electron.TitleBarOverlay {
+function titleBarOverlay(theme: ResolvedTheme): Electron.TitleBarOverlay {
 	return {
 		color: windowBackground(theme),
-		symbolColor: theme === "dark" ? "#fafafa" : "#17171a",
+		symbolColor: theme === "dracula" ? "#f8f8f2" : theme === "dark" ? "#fafafa" : "#17171a",
 		height: 48,
 	};
 }
 
 /** 主题切换后同步窗口底色与 Windows 窗口按钮覆盖层（macOS 红绿灯由系统绘制，无需处理） */
-export function applyChromeTheme(mode: ThemeMode): void {
+export function applyChromeTheme(mode: ThemeMode = currentThemeMode): void {
 	const resolved = resolveTheme(mode);
 	for (const win of BrowserWindow.getAllWindows()) {
 		win.setBackgroundColor(windowBackground(resolved));
@@ -115,7 +135,7 @@ export function applyChromeTheme(mode: ThemeMode): void {
 }
 
 export function createWindow(
-	theme: "dark" | "light" = "light",
+	theme: ResolvedTheme = "light",
 	bounds: Rect | null = null,
 	startup?: { isPreparing: () => boolean; onClose: () => void },
 ): BrowserWindow {

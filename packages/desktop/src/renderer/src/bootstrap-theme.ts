@@ -5,4 +5,7 @@
  */
 const param = new URLSearchParams(location.search).get("theme");
 const system = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-document.documentElement.dataset.theme = param === "dark" || param === "light" ? param : system;
+// dracula 是深色配色变体：data-theme 仍为 dark（沿用全部深色样式），data-palette 覆写色板
+document.documentElement.dataset.theme =
+	param === "dracula" ? "dark" : param === "dark" || param === "light" ? param : system;
+document.documentElement.dataset.palette = param === "dracula" ? "dracula" : "default";

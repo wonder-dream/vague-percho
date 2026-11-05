@@ -119,7 +119,10 @@ function normalize(parsed: UiStateFileShape): UiState {
 	const model = parsed.lastUsedModel ?? parsed.currentModel;
 	const level = parsed.lastUsedThinkingLevel ?? parsed.thinkingLevel;
 	const theme =
-		parsed.theme === "light" || parsed.theme === "dark" || parsed.theme === "system"
+		parsed.theme === "light" ||
+		parsed.theme === "dark" ||
+		parsed.theme === "system" ||
+		parsed.theme === "dracula"
 			? parsed.theme
 			: "system";
 	const background = parsed.background;

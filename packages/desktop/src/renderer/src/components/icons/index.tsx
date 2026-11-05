@@ -65,6 +65,24 @@ export function MoonIcon({ size = 14, className }: IconProps) {
 	);
 }
 
+/** 德古拉主题：蝙蝠剪影（lucide 无对应图标，按其 24 栅格/2px 描边风格绘制） */
+export function DraculaIcon({ size = 14, className }: IconProps) {
+	return (
+		<svg
+			className={className}
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			{...strokeProps}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M12 8.5 10.5 6v3C8.5 8 5.5 7.5 2 8.5c2 1 3 3 3 5 1.5-1 3.5-1 5 .5L12 17l2-3c1.5-1.5 3.5-1.5 5-.5 0-2 1-4 3-5-3.5-1-6.5-.5-8.5.5V6Z" />
+		</svg>
+	);
+}
+
 export function MonitorIcon({ size = 14, className }: IconProps) {
 	return (
 		<svg

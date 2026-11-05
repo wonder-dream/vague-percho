@@ -4,10 +4,10 @@ import { app, ipcMain } from "electron";
 import type { LocalStorageSelection } from "../../../backend/src/storage/path-policy";
 import { localStorageSelection, localStorageSelectionError } from "./dev-agent-dir";
 import { StorageStartupController } from "./storage-startup-controller";
-import { createWindow } from "./window";
+import { createWindow, type ResolvedTheme } from "./window";
 
 export function prepareLocalStorage(
-	theme: "light" | "dark",
+	theme: ResolvedTheme,
 	bounds: Rect | null,
 ): Promise<{
 	record: LocalStorageRecord;

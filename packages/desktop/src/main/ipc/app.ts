@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { type PiBackend, validateProjectDirectory } from "@percho/backend";
 import { APP_CHANNELS, environmentEntityRef } from "@percho/shared";
-import { app, BrowserWindow, dialog, nativeTheme, shell } from "electron";
+import { app, BrowserWindow, dialog, shell } from "electron";
 import { releaseChannel } from "../app-identity";
 import { pickBackgroundImage } from "../background";
 import { cancelComposerEditMenu, showComposerEditMenu } from "../composer-edit-menu";
@@ -24,7 +24,7 @@ import {
 	getUpdateDiagnostics,
 	installUpdate,
 } from "../updater";
-import { ackQuitDialog, setQuitGuard } from "../window";
+import { ackQuitDialog, setQuitGuard, setThemeMode } from "../window";
 import { registerInvokeHandlers } from "./invoke";
 
 /** 项目仓库地址（帮助跳转 + 关于页） */
@@ -113,7 +113,7 @@ export function registerAppIpc(backend: PiBackend): void {
 			if (typeof state.taskNotificationsEnabled === "boolean")
 				nativeNotifications.setEnabled(state.taskNotificationsEnabled);
 			// 主题变更 → 对齐 main 原生主题（themeSource 赋值触发 updated 事件，窗口底色/Windows 按钮覆盖层随之刷新）
-			if (state.theme) nativeTheme.themeSource = state.theme;
+			if (state.theme) setThemeMode(state.theme);
 			return saveUiState(state);
 		},
 		pickBackgroundImage: () => pickBackgroundImage(BrowserWindow.getAllWindows()[0]),
