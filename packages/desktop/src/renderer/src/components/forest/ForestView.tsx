@@ -5,8 +5,10 @@ import {
 	FOREST_CARD_HEIGHT,
 	FOREST_CARD_WIDTH,
 	type ForestCard,
+	type ForestLiveTurn,
 	forestEdgePath,
 	layoutForest,
+	overlayLiveTurns,
 } from "../../lib/forest-layout";
 import { useForestStore } from "../../stores/forest";
 import { useSessionsStore } from "../../stores/sessions";
@@ -349,7 +351,7 @@ function Inspector({
 	const detail = useForestStore((s) => s.details[card.key]);
 	const turn: ForestTurn | null = card.turn;
 	useEffect(() => {
-		if (turn) void loadDetail(card.key, card.sessionFile, turn.userEntryId);
+		if (turn && turn.userEntryId !== "live") void loadDetail(card.key, card.sessionFile, turn.userEntryId);
 	}, [card.key, card.sessionFile, turn, loadDetail]);
 	const full = detail && !("error" in detail) ? detail : undefined;
 	const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -517,6 +519,26 @@ export function ForestView() {
 			.join("|"),
 	);
 	const running = useMemo(() => new Set(runningIds.split("|").filter(Boolean)), [runningIds]);
+	// 运行中会话的最新提问 + 流式正文：先序列化成稳定字符串，避免 transcript 每个 delta 都让整图重算
+	const liveKey = useTranscriptStore((s) => {
+		const parts: string[] = [];
+		for (const id of runningIds.split("|")) {
+			const entry = id ? s.bySession[id] : undefined;
+			if (!entry) continue;
+			const lastUser = [...entry.messages].reverse().find((message) => message.kind === "user");
+			parts.push(JSON.stringify([id, lastUser?.text ?? "", entry.streaming?.text ?? ""]));
+		}
+		return parts.join("\n");
+	});
+	const live = useMemo(() => {
+		const map = new Map<string, ForestLiveTurn>();
+		for (const line of liveKey.split("\n")) {
+			if (!line) continue;
+			const [id, question, answer] = JSON.parse(line) as [string, string, string];
+			map.set(id, { question, answer });
+		}
+		return map;
+	}, [liveKey]);
 
 	useEffect(() => {
 		if (cwd) void refresh(cwd);
@@ -527,6 +549,13 @@ export function ForestView() {
 		const timer = window.setInterval(() => void refresh(cwd), 2500);
 		return () => window.clearInterval(timer);
 	}, [cwd, running.size, refresh]);
+	// 某个会话刚跑完：最终回复已落盘，补拉一次（轮询随 running 清空而停，否则卡片停在最后一次轮询的半截状态）
+	const previousRunning = useRef<Set<string>>(new Set());
+	useEffect(() => {
+		const finished = [...previousRunning.current].some((id) => !running.has(id));
+		previousRunning.current = running;
+		if (finished && cwd) void refresh(cwd);
+	}, [running, cwd, refresh]);
 
 	// 拖动中的临时位置（松手才写布局）
 	const [dragging, setDragging] = useState<{ key: string; x: number; y: number } | null>(null);
@@ -535,8 +564,8 @@ export function ForestView() {
 		const positions = dragging
 			? { ...layout.positions, [dragging.key]: { x: dragging.x, y: dragging.y } }
 			: layout.positions;
-		return layoutForest(graph, { ...layout, positions });
-	}, [graph, layout, dragging]);
+		return layoutForest(overlayLiveTurns(graph, live), { ...layout, positions });
+	}, [graph, layout, dragging, live]);
 
 	const [camera, setCamera] = useState<Camera>({ x: PADDING, y: PADDING, zoom: 1 });
 	// 首次拿到图（及换项目）时缩放到全图可见，最大 100%

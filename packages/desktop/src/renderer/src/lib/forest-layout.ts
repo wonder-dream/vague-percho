@@ -183,6 +183,46 @@ export function layoutForest(graph: ForestGraph, layout: ForestLayout): ForestVi
 	return { cards, edges, hiddenCounts, width, height };
 }
 
+/** 运行中会话的实时状态（来自 transcript：最新提问 + 正在生成的回复） */
+export interface ForestLiveTurn {
+	question: string;
+	answer: string;
+}
+
+/**
+ * 叠加实时回复：会话最后一轮的提问与 live.question 相同 → 用流式正文覆盖回答；
+ * 否则（新问题还没落盘）在链尾追加一张临时卡（key = `${sessionId}:live`）。
+ * 不改动原图，返回新图。
+ */
+export function overlayLiveTurns(graph: ForestGraph, live: ReadonlyMap<string, ForestLiveTurn>): ForestGraph {
+	if (live.size === 0) return graph;
+	return {
+		...graph,
+		sessions: graph.sessions.map((session) => {
+			const current = live.get(session.sessionId);
+			if (!current) return session;
+			const turns = [...session.turns];
+			const last = turns[turns.length - 1];
+			const question = current.question.trim();
+			// 图里的提问是截断预览（可能以 … 结尾）：按前缀比对
+			const persisted = last?.question.replace(/…$/, "").trim();
+			if (last && persisted && question.startsWith(persisted) && turns.length > session.inheritedTurns) {
+				turns[turns.length - 1] = { ...last, answer: current.answer || last.answer };
+			} else if (question) {
+				turns.push({
+					userEntryId: "live",
+					question,
+					answer: current.answer,
+					toolCount: 0,
+					errored: false,
+					timestamp: Date.now(),
+				});
+			}
+			return { ...session, turns };
+		}),
+	};
+}
+
 /** 两卡之间的连线（右缘中点 → 左缘中点的三次贝塞尔） */
 export function forestEdgePath(from: { x: number; y: number }, to: { x: number; y: number }): string {
 	const x1 = from.x + FOREST_CARD_WIDTH;

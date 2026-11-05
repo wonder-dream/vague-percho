@@ -1,6 +1,6 @@
 import type { ForestGraph, ForestSession, ForestTurn } from "@percho/shared";
 import { describe, expect, it } from "vitest";
-import { FOREST_CARD_HEIGHT, FOREST_CARD_WIDTH, layoutForest } from "./forest-layout";
+import { FOREST_CARD_HEIGHT, FOREST_CARD_WIDTH, layoutForest, overlayLiveTurns } from "./forest-layout";
 
 const turn = (id: string): ForestTurn => ({
 	userEntryId: id,
@@ -80,5 +80,24 @@ describe("layoutForest", () => {
 			empty,
 		);
 		expect(view.cards.find((card) => card.key === "f:empty")).toMatchObject({ turn: null, head: true });
+	});
+});
+
+describe("overlayLiveTurns", () => {
+	const base: ForestGraph = { cwd: "/p", sessions: [session("s", ["q1", "q2"])] };
+	it("streams into the last persisted turn when the question matches", () => {
+		const next = overlayLiveTurns(base, new Map([["s", { question: "q2", answer: "partial" }]]));
+		expect(next.sessions[0]?.turns.map((t) => [t.question, t.answer])).toEqual([
+			["q1", ""],
+			["q2", "partial"],
+		]);
+	});
+	it("appends a live card for a question not yet on disk", () => {
+		const next = overlayLiveTurns(base, new Map([["s", { question: "q3", answer: "" }]]));
+		expect(next.sessions[0]?.turns.at(-1)).toMatchObject({ userEntryId: "live", question: "q3" });
+		expect(layoutForest(next, empty).cards.at(-1)?.key).toBe("s:live");
+	});
+	it("returns the same graph without live sessions", () => {
+		expect(overlayLiveTurns(base, new Map())).toBe(base);
 	});
 });
