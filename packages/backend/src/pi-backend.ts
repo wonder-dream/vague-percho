@@ -2567,15 +2567,24 @@ export class PiBackend {
 			}
 			try {
 				this.assertRunning();
-				this.magicContextOwners.set(entry.modeRef, false);
+				// modeRef 缺失时 WeakMap.set 抛 Invalid value used as weak map key。
+				// 窗口所有权只是 reload 之后的标记，不能挡住 session.reload()，
+				// 刷新失败也不能把已经成功的 reload 记成失败。
+				if (entry.modeRef) this.magicContextOwners.set(entry.modeRef, false);
 				await entry.session.reload();
+				reloaded++;
+			} catch (err) {
+				log.warn("session reload failed", entry.session.sessionId, err);
+				continue;
+			}
+			if (!entry.modeRef) continue;
+			try {
 				this.updateContextOwner(
 					entry.modeRef,
 					magicContextOwnsWindow(entry.session.resourceLoader.getExtensions()),
 				);
-				reloaded++;
 			} catch (err) {
-				log.warn("session reload failed", entry.session.sessionId, err);
+				log.warn("context owner refresh failed", entry.session.sessionId, err);
 			}
 		}
 		return { reloaded, skipped };
