@@ -12,7 +12,8 @@ export const zh = {
 		targetUnavailable: "通知对应的会话或连接已不可用。",
 	},
 	emptyState: {
-		slogan: "做你所想，如你所愿",
+		vagueSlogan: "身陷浓雾，不辨去路",
+		dreamSlogan: "神游幻梦，不知归途",
 	},
 	storageStartup: {
 		preparing: "正在准备…",
