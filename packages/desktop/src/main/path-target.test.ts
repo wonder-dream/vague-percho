@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { cleanPathText, resolveExistingPath, resolvePathTarget } from "./path-target";
 
 /** 路径解析（issue #55 ④）：模型给的路径形态千奇百怪，这里把每类都钉住 */
 
-const CWD = "/Users/me/proj";
+const CWD = process.platform === "win32" ? "C:\\Users\\me\\proj" : "/Users/me/proj";
 
 describe("cleanPathText", () => {
 	it("剥成对包裹符（反引号/引号/尖括号/括号/方括号）", () => {
@@ -37,8 +38,8 @@ describe("cleanPathText", () => {
 
 describe("resolvePathTarget", () => {
 	it("绝对路径原样（normalize 掉 ./ 与 ..）", () => {
-		expect(resolvePathTarget("/Users/me/proj/src/a.ts", CWD)).toBe("/Users/me/proj/src/a.ts");
-		expect(resolvePathTarget("/Users/me/proj/./src/../src/a.ts", CWD)).toBe("/Users/me/proj/src/a.ts");
+		expect(resolvePathTarget(join(CWD, "src/a.ts"), CWD)).toBe(join(CWD, "src/a.ts"));
+		expect(resolvePathTarget(`${CWD}/./src/../src/a.ts`, CWD)).toBe(join(CWD, "src/a.ts"));
 	});
 
 	it("相对路径以会话 cwd 为基准（cwd 非法/缺省时退回进程 cwd）", () => {
@@ -57,15 +58,15 @@ describe("resolvePathTarget", () => {
 	});
 
 	it("file:// URL（含中文与空格的 percent-encoding）", () => {
-		expect(resolvePathTarget("file:///Users/me/proj/a%20b.ts", CWD)).toBe("/Users/me/proj/a b.ts");
-		expect(resolvePathTarget("file:///Users/me/%E4%B8%AD%E6%96%87.md", CWD)).toBe("/Users/me/中文.md");
-		expect(resolvePathTarget("file:///Users/me/proj/a.ts:12", CWD)).toBe("/Users/me/proj/a.ts");
+		expect(resolvePathTarget(pathToFileURL(join(CWD, "a b.ts")).href, CWD)).toBe(join(CWD, "a b.ts"));
+		expect(resolvePathTarget(pathToFileURL(join(CWD, "中文.md")).href, CWD)).toBe(join(CWD, "中文.md"));
+		expect(resolvePathTarget(`${pathToFileURL(join(CWD, "a.ts")).href}:12`, CWD)).toBe(join(CWD, "a.ts"));
 	});
 
 	it("纯路径里的 percent-encoding 也解码；非法转义保持原样", () => {
-		expect(resolvePathTarget("/Users/me/a%20b.ts", CWD)).toBe("/Users/me/a b.ts");
-		expect(resolvePathTarget("/Users/me/100%25.ts", CWD)).toBe("/Users/me/100%.ts");
-		expect(resolvePathTarget("/Users/me/100% 完成.md", CWD)).toBe("/Users/me/100% 完成.md");
+		expect(resolvePathTarget(`${CWD}/a%20b.ts`, CWD)).toBe(join(CWD, "a b.ts"));
+		expect(resolvePathTarget(`${CWD}/100%25.ts`, CWD)).toBe(join(CWD, "100%.ts"));
+		expect(resolvePathTarget(`${CWD}/100% 完成.md`, CWD)).toBe(join(CWD, "100% 完成.md"));
 	});
 
 	it("空路径/纯包裹符抛错（不静默当成 cwd）", () => {

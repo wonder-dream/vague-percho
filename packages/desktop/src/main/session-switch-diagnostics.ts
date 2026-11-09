@@ -1,12 +1,16 @@
 import { readFile, realpath } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, resolve, sep } from "node:path";
 import { beginSessionSwitchProbe, finishSessionSwitchProbe } from "@percho/backend";
 import type { SessionSwitchFixture } from "@percho/shared";
 import { app } from "electron";
 
 async function assertIsolated(): Promise<string> {
 	const root = process.env.PERCHO_SESSION_SWITCH_DIAGNOSTICS_ROOT;
-	if (!root || !isAbsolute(root) || !root.endsWith("/.local/tmp/session-switch-diagnostics")) {
+	if (
+		!root ||
+		!isAbsolute(root) ||
+		!resolve(root).endsWith(`${sep}${join(".local", "tmp", "session-switch-diagnostics")}`)
+	) {
 		throw new Error("Session diagnostics require an explicitly isolated test instance");
 	}
 	const canonical = await realpath(root);

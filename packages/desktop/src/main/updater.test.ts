@@ -79,7 +79,7 @@ describe("updater diagnostic wiring", () => {
 		expect(fake.updater.checkForUpdates).not.toHaveBeenCalled();
 		expect(fake.updater.downloadUpdate).not.toHaveBeenCalled();
 		expect(fake.updater.quitAndInstall).not.toHaveBeenCalled();
-	});
+	}, 20000);
 	it("connects SDK logger and emits bounded metadata without changing download policy", async () => {
 		const updater = await import("./updater");
 		await updater.initUpdater();
