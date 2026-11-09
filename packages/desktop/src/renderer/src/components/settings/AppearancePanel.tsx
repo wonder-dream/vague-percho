@@ -134,7 +134,9 @@ function AppearanceBasics() {
 								aria-pressed={mode === m}
 								className={`flex min-h-22 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border px-2 py-4 text-ui-13 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ink-faint ${
 									mode === m
-										? "border-ink-faint bg-hover text-ink"
+										? m === "dracula"
+											? "border-accent bg-hover text-ink"
+											: "border-ink-faint bg-hover text-ink"
 										: "border-border text-ink-2 hover:border-border-strong hover:bg-hover"
 								}`}
 								onClick={() => setMode(m)}
@@ -211,7 +213,7 @@ function AppearanceBasics() {
 							max={100}
 							value={Math.round(background.dim * 100)}
 							onChange={(e) => setBackgroundDim(Number(e.target.value) / 100)}
-							className="h-1 flex-1 accent-[#7c3aed]"
+							className="h-1 flex-1 accent-accent"
 							aria-label={t("settings.backgroundDim")}
 						/>
 						<span className="w-10 shrink-0 text-right text-ui-12 tabular-nums text-ink-dim">
