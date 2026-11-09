@@ -14,7 +14,8 @@ export const en: Messages = {
 		targetUnavailable: "The notification's session or connection is no longer available.",
 	},
 	emptyState: {
-		slogan: "Bring your ideas to life, your way.",
+		vagueSlogan: "Lost in the fog, with no path in sight",
+		dreamSlogan: "Wandering through dreams, with no way home",
 	},
 	storageStartup: {
 		preparing: "Preparing…",
