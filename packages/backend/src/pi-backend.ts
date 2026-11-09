@@ -65,6 +65,7 @@ import type {
 	TrustResolved,
 } from "@percho/shared";
 import {
+	CHANNEL_WAKE_CUSTOM_TYPE,
 	type ComposerDocument,
 	composerDocumentFromText,
 	composerDocumentText,
@@ -1790,7 +1791,15 @@ export class PiBackend {
 						images: blockImages(raw.content),
 					};
 				});
+		const pendingWakes = agent
+			.getQueuedMessages()
+			.filter((message) => message.role === "custom" && message.customType === CHANNEL_WAKE_CUSTOM_TYPE);
 		const cleared = entry.session.clearQueue();
+		if (pendingWakes.length) {
+			// clearQueue cancels the original message identities. Fresh copies remain deliverable
+			// alongside the next human prompt, without appearing as editable composer input.
+			for (const wake of pendingWakes) agent.followUp({ ...wake });
+		}
 		return {
 			steering: cleared.steering.map(composerQueueText),
 			followUp: cleared.followUp.map(composerQueueText),

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PiBackend } from "../src/pi-backend";
 import { resolveRecallEntryId, toBranchSessionMessages } from "../src/session/messages";
 import type { SessionRegistry } from "../src/session/registry";
+import { buildWakeMessage } from "../src/tools/channel-watch/extension";
 
 /** 构造带两条用户消息（+一条回复在中间）的内存会话，返回 manager 与 entry id */
 function makeSession() {
@@ -39,6 +40,19 @@ describe("failed history identity", () => {
 		expect(
 			toBranchSessionMessages(manager.getBranch()).find((message) => message.stopReason === "error")?.entryId,
 		).toBe(entryId);
+	});
+});
+
+describe("频道控制消息回放", () => {
+	it("自定义唤醒在历史回放可见且不冒充用户消息", () => {
+		const manager = SessionManager.inMemory();
+		const raw = buildWakeMessage("review", new Date(2026, 0, 1, 9, 5));
+		manager.appendCustomMessageEntry("channel-wake", raw, true, { topic: "review" });
+		const [message] = toBranchSessionMessages(manager.getBranch());
+		expect(message).toMatchObject({
+			role: "channel-wake",
+			text: raw,
+		});
 	});
 });
 

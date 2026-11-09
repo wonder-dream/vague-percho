@@ -1,5 +1,6 @@
 export * from "./cache-warming";
 export * from "./channel-subscriptions";
+export * from "./channel-wake";
 export * from "./composer-document";
 export * from "./display-image";
 export * from "./environment";

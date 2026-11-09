@@ -1,3 +1,4 @@
+import { CHANNEL_WAKE_CUSTOM_TYPE } from "../channel-wake";
 import type { UiError } from "../errors";
 import type { SessionMessage } from "../session";
 import { subagentUiStatus } from "../subagent";
@@ -29,6 +30,11 @@ export function messagesToUIMessages(messages: SessionMessage[]): UIMessage[] {
 		const m = messages[i];
 		if (!m) continue;
 		const id = m.historyId ?? `h${i}`;
+		if (m.role === CHANNEL_WAKE_CUSTOM_TYPE) {
+			flushError();
+			ui.push({ kind: "system", id, text: m.text, timestamp: m.timestamp, channelWake: true });
+			continue;
+		}
 		if (m.role === "compaction") {
 			// 重开会话回放的压缩分割线（实时路径由 compaction_start/end 事件产生）。
 			// 不 flushError：与实时同序 —— 溢出恢复的压缩发生在 pending 错误卡落卡之前，

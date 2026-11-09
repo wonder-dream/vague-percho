@@ -2,6 +2,7 @@ import type { AgentSessionEvent as PiAgentSessionEvent } from "@earendil-works/p
 
 export type { CompactionPause } from "@earendil-works/pi-coding-agent";
 
+import type { CHANNEL_WAKE_CUSTOM_TYPE } from "./channel-wake";
 import type { ComposerDocument } from "./composer-document";
 import type { DisplayImage } from "./display-image";
 import type { SkillInvocationDisplay } from "./skill-invocation";
@@ -237,13 +238,21 @@ export interface SessionCompactionMessage extends SessionMessageOrigin {
 	tokensBefore?: number;
 }
 
+/** Channel control notification, delivered as a Pi custom message rather than a user prompt. */
+export interface SessionChannelWakeMessage extends SessionMessageOrigin {
+	role: typeof CHANNEL_WAKE_CUSTOM_TYPE;
+	text: string;
+	timestamp: number;
+}
+
 /** 历史会话消息（打开历史会话时回放用；不依赖 pi 内部类型） */
 export type SessionMessage =
 	| SessionUserMessage
 	| SessionAssistantMessage
 	| SessionImageMessage
 	| SessionSubagentMessage
-	| SessionCompactionMessage;
+	| SessionCompactionMessage
+	| SessionChannelWakeMessage;
 
 export interface AvailableModel {
 	provider: string;

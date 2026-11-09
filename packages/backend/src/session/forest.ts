@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseSessionEntries, type SessionEntry } from "@earendil-works/pi-coding-agent";
 import {
+	CHANNEL_WAKE_CUSTOM_TYPE,
 	FOREST_BODY_CHARS,
 	FOREST_PREVIEW_CHARS,
 	type ForestGraph,
@@ -40,8 +41,9 @@ const ms = (iso: string | undefined, fallback: number): number => {
 	return Number.isNaN(parsed) ? fallback : parsed;
 };
 
-/** 用户亲手输入的消息才算一轮（排除注入的 custom/system-reminder 等） */
+/** 用户输入和触发独立轮次的频道唤醒都构成一轮；其他扩展消息不计。 */
 function isUserTurn(entry: SessionEntry): boolean {
+	if (entry.type === "custom_message" && entry.customType === CHANNEL_WAKE_CUSTOM_TYPE) return true;
 	if (entry.type !== "message") return false;
 	const message = entry.message as RawMessage;
 	return message.role === "user" && blockText(message.content).trim().length > 0;
@@ -97,12 +99,14 @@ export function toForestTurns(branch: readonly SessionEntry[]): ForestTurn[] {
 	const turns: ForestTurn[] = [];
 	let current: ForestTurn | undefined;
 	for (const entry of branch) {
-		if (entry.type !== "message") continue;
-		const message = entry.message as RawMessage;
+		if (entry.type !== "message" && !isUserTurn(entry)) continue;
+		const message = entry.type === "message" ? (entry.message as RawMessage) : undefined;
 		if (isUserTurn(entry)) {
 			current = {
 				userEntryId: entry.id,
-				question: clip(blockText(message.content).trim()),
+				question: clip(
+					blockText(message?.content ?? (entry.type === "custom_message" ? entry.content : undefined)).trim(),
+				),
 				answer: "",
 				toolCount: 0,
 				errored: false,
@@ -111,7 +115,7 @@ export function toForestTurns(branch: readonly SessionEntry[]): ForestTurn[] {
 			turns.push(current);
 			continue;
 		}
-		if (!current || message.role !== "assistant") continue;
+		if (!current || message?.role !== "assistant") continue;
 		current.assistantEntryId = entry.id;
 		current.toolCount += toolCallCount(message.content);
 		const text = blockText(message.content).trim();
@@ -221,9 +225,13 @@ export function toForestTurnDetail(content: string, userEntryId: string): Forest
 		budget -= text.length;
 		return text;
 	};
-	const question = take(
-		blockText((start.type === "message" ? (start.message as RawMessage) : undefined)?.content).trim(),
-	);
+	const startContent =
+		start.type === "message"
+			? (start.message as RawMessage).content
+			: start.type === "custom_message"
+				? start.content
+				: undefined;
+	const question = take(blockText(startContent).trim());
 	const answers: string[] = [];
 	const tools: ForestTurnDetail["tools"] = [];
 	const toolIndex = new Map<string, number>();

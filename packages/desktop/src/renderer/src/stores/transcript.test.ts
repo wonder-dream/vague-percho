@@ -137,6 +137,22 @@ describe("transcript reducer", () => {
 		expect(state.messages[0]).toMatchObject({ kind: "user", text: "你好" });
 	});
 
+	it("频道控制消息显示为系统提示而非用户输入", () => {
+		const raw =
+			"[channel:review] 有新消息（09:05:00），请读 .local/agent-work/channel/review/MESSAGES.md 查收。";
+		const state = reduceEvent(
+			emptyTranscript(),
+			ev("message_start", {
+				message: { role: "custom", customType: "channel-wake", content: raw },
+			}),
+		);
+		expect(state.messages[0]).toMatchObject({
+			kind: "system",
+			text: raw,
+			channelWake: true,
+		});
+	});
+
 	describe("乐观用户气泡（发送瞬间回显，权威消息原位认领）", () => {
 		const userStart = (text: string, images = 0) =>
 			({

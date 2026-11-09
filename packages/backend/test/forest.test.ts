@@ -24,6 +24,18 @@ afterEach(() => {
 });
 
 describe("toForestTurns", () => {
+	it("把频道唤醒作为独立轮次并归属后续回复", () => {
+		const sm = SessionManager.inMemory();
+		sm.appendMessage(user("Original", 1));
+		sm.appendMessage(assistant("First reply", 2));
+		const wake = sm.appendCustomMessageEntry("channel-wake", "[channel:review] 查收", true);
+		sm.appendMessage(assistant("Reviewed", 3));
+		expect(toForestTurns(sm.getBranch())).toMatchObject([
+			{ question: "Original", answer: "First reply" },
+			{ userEntryId: wake, question: "[channel:review] 查收", answer: "Reviewed" },
+		]);
+	});
+
 	it("folds assistant replies and tool calls into the preceding question", () => {
 		const sm = SessionManager.inMemory();
 		const q1 = sm.appendMessage(user("Q1", 1));

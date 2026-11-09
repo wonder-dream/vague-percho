@@ -46,6 +46,40 @@ function snapshot(entries: SessionEntry[]): SourceSnapshot {
 const context = { hydrationToken: "open-one" };
 const project = (entries: readonly SessionEntry[]) => toBranchSessionMessages(entries, "source");
 
+describe("频道唤醒分页", () => {
+	it("把 custom channel-wake 视为轮次边界，导航与逐页回放都保留系统提示", () => {
+		const rows = branch(2);
+		const wake = {
+			type: "custom_message",
+			customType: "channel-wake",
+			content: "[channel:review] 有新消息，请查收。",
+			display: true,
+			id: "wake",
+			parentId: "a1",
+			timestamp: "2026-01-01T00:00:01Z",
+		} as SessionEntry;
+		const answer = entry("after-wake", "wake", {
+			role: "assistant",
+			content: [{ type: "text", text: "Reviewed" }],
+		});
+		rows.push(wake, answer);
+		const pager = new SessionHistoryPager();
+		expect(pager.navigation(snapshot(rows), rows).entries.map(({ entryId }) => entryId)).toEqual([
+			"u0",
+			"u1",
+			"wake",
+		]);
+		const latest = pager.tail(snapshot(rows), rows, { hydrationToken: "open-one", turns: 1 }, project);
+		expect(latest.uiMessages).toEqual(
+			expect.arrayContaining([expect.objectContaining({ kind: "system", channelWake: true })]),
+		);
+		const cursor = latest.history.cursor;
+		if (!cursor) throw new Error("Expected older page");
+		const older = pager.older(snapshot(rows), rows, cursor, context, project);
+		expect(older.uiMessages.some((message) => message.kind === "user")).toBe(true);
+	});
+});
+
 describe("会话导航索引", () => {
 	it("重复读取复用不可变来源摘要，同 ID 新来源仍更新回复", () => {
 		const rows = branch(2);

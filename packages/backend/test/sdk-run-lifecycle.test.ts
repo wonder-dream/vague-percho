@@ -35,6 +35,7 @@ import { toBranchSessionMessages } from "../src/session/messages";
 import type { RegisteredSession, SessionRegistry } from "../src/session/registry";
 import { emitSessionShutdown } from "../src/session/shutdown";
 import { beginSessionSwitchProbe, finishSessionSwitchProbe } from "../src/session/switch-diagnostics";
+import { buildWakeMessage } from "../src/tools/channel-watch/extension";
 import { createCompactionRequestPolicy } from "../src/tools/compaction-guard/request-policy";
 
 const roots: string[] = [];
@@ -179,6 +180,41 @@ async function fixture(
 }
 
 describe("SDK 1.4 real offline run lifecycle", () => {
+	it("retains a queued channel wake when the user clears the composer queue", async () => {
+		const f = await fixture({ name: "channel-queue", factory: () => {} });
+		const backend = new PiBackend({ projectTrust: false, permissionGates: false });
+		(backend as unknown as { registry: SessionRegistry }).registry.add({
+			session: f.session,
+			cwd: f.cwd,
+			modeRef: { current: "default" },
+			unsubscribe: () => {},
+			gate: { dispose: () => {} },
+			dialogs: { dispose: () => {} },
+		} as RegisteredSession);
+		const wake = buildWakeMessage("review", new Date(2026, 0, 1, 9, 5));
+		f.session.agent.followUp({
+			role: "custom",
+			customType: "channel-wake",
+			content: wake,
+			display: true,
+			timestamp: Date.now(),
+		});
+		f.session.agent.followUp({ role: "user", content: "draft", timestamp: Date.now() });
+		try {
+			const cleared = await backend.clearQueue(f.session.sessionId);
+			expect(cleared.followUp).toEqual([]);
+			expect(cleared.followUpInputs?.map((input) => input.document)).toHaveLength(1);
+			const queued = f.session.agent.getQueuedMessages("followUp");
+			expect(queued).toHaveLength(1);
+			expect(queued[0]).toMatchObject({ role: "custom", customType: "channel-wake", content: wake });
+			await f.session.prompt("resume");
+			expect(JSON.stringify(f.requests.at(-1)).match(/\[channel:review\]/g)).toHaveLength(1);
+			expect(f.session.agent.getQueuedMessages("followUp")).toHaveLength(0);
+		} finally {
+			await backend.dispose();
+		}
+	});
+
 	it("诊断开关不改变真实SDK模型消息或扩展触发次数", async () => {
 		const run = async (enabled: boolean) => {
 			let starts = 0;

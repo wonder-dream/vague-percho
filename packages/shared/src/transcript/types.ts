@@ -78,6 +78,8 @@ export type UIMessage =
 			id: string;
 			text: string;
 			timestamp: number;
+			/** Host-generated channel notification, shown without a user bubble. */
+			channelWake?: true;
 			compact?: CompactionUiState;
 			/** subagent 互斥接管通知（结构化字段，渲染层 i18n；dedup 以 extensionPath 为准） */
 			mutex?: { extensionPath: string; tools: string[] };

@@ -1,3 +1,4 @@
+import { CHANNEL_WAKE_CUSTOM_TYPE } from "../channel-wake";
 import { readComposerDocument } from "../composer-document";
 import { buildStreamGuardUiError, type UiError } from "../errors";
 import type { ImageInput, SessionEvent } from "../session";
@@ -319,6 +320,23 @@ export function reduceEvent(state: SessionTranscriptState, event: SessionEvent):
 					...state,
 					streaming: emptyStreaming(),
 				};
+			}
+			if (event.message.role === "custom" && event.message.customType === CHANNEL_WAKE_CUSTOM_TYPE) {
+				const content = event.message.content;
+				const text =
+					typeof content === "string"
+						? content
+						: content
+								.filter((part) => part.type === "text")
+								.map((part) => part.text)
+								.join("");
+				return appendMessage(state, {
+					kind: "system",
+					id: newMessageId(),
+					text,
+					timestamp: event.message.timestamp ?? Date.now(),
+					channelWake: true,
+				});
 			}
 			if (event.message.role !== "user") return state;
 			const content = event.message.content;

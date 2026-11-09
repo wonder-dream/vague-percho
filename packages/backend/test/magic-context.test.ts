@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,12 +8,14 @@ import { promisify } from "node:util";
 import {
 	createAgentSession,
 	DefaultResourceLoader,
+	type InlineExtension,
 	SessionManager,
 	SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { parse } from "jsonc-parser";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { builtinExtensions } from "../src/project/builtin-extensions";
+import { toBranchSessionMessages } from "../src/session/messages";
 import {
 	applyMagicContextEnv,
 	normalizeHfEndpoint,
@@ -21,6 +24,8 @@ import {
 	writeMagicContextAgentModel,
 	writeMagicContextHfEndpoint,
 } from "../src/settings/magic-context";
+import { makeChannelWatchExtension } from "../src/tools/channel-watch/extension";
+import { ChannelWatcher } from "../src/tools/channel-watch/watcher";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,14 +58,14 @@ function sandbox() {
 	return { root, agentDir, cwd };
 }
 
-async function loadSession(agentDir: string, cwd: string, root: string) {
+async function loadSession(agentDir: string, cwd: string, root: string, extensions: InlineExtension[] = []) {
 	const loader = new DefaultResourceLoader({
 		cwd,
 		agentDir,
 		noSkills: true,
 		noPromptTemplates: true,
 		noThemes: true,
-		extensionFactories: builtinExtensions({ agentDir }),
+		extensionFactories: [...extensions, ...builtinExtensions({ agentDir })],
 	});
 	await loader.reload();
 	return createAgentSession({
@@ -90,6 +95,76 @@ describe("Magic Context 内置集成", () => {
 			// 扩展核心工具：记忆检索/写入
 			expect(tools.some((name) => name.startsWith("ctx_"))).toBe(true);
 			console.log("magic-context tools:", tools.filter((name) => name.startsWith("ctx_")).join(", "));
+		} finally {
+			session.dispose();
+		}
+	});
+
+	it("与频道扩展共同运行时，唤醒保留可查收路径且不附加记忆检索提示", { timeout: 60_000 }, async () => {
+		const { root, agentDir, cwd } = sandbox();
+		writeFileSync(join(agentDir, "magic-context.json"), JSON.stringify({ enabled: true }));
+		const channel = makeChannelWatchExtension({
+			agentDir,
+			cwd,
+			isEnabled: () => true,
+			watcherFactory: (options) => new ChannelWatcher({ ...options, debounceMs: 20, pollIntervalMs: 20 }),
+		});
+		const { session, extensionsResult } = await loadSession(agentDir, cwd, root, [channel]);
+		try {
+			await session.bindExtensions({ mode: "rpc" });
+			expect(extensionsResult.errors).toEqual([]);
+			expect(extensionsResult.extensions.map((e) => e.path)).toEqual(
+				expect.arrayContaining(["<inline:channel-watch>", "<inline:magic-context>"]),
+			);
+			const runner = (
+				session as unknown as {
+					_extensionRunner: {
+						getToolDefinition: (
+							name: string,
+						) => { execute: (id: string, params: object) => Promise<unknown> } | undefined;
+						emitContext: (messages: typeof session.messages) => Promise<typeof session.messages>;
+					};
+				}
+			)._extensionRunner;
+			const subscribe = runner.getToolDefinition("channel_subscribe");
+			if (!subscribe) throw new Error("channel_subscribe missing");
+			await subscribe.execute("subscribe", { topic: "review" });
+			let wakeText = "";
+			const off = session.subscribe((event) => {
+				if (
+					event.type === "message_end" &&
+					event.message.role === "custom" &&
+					event.message.customType === "channel-wake"
+				) {
+					wakeText = typeof event.message.content === "string" ? event.message.content : "";
+				}
+			});
+			const file = join(cwd, ".local", "agent-work", "channel", "review", "MESSAGES.md");
+			await mkdir(join(cwd, ".local", "agent-work", "channel", "review"), { recursive: true });
+			await writeFile(file, "## review\n\nnew update\n");
+			await vi.waitFor(() => expect(wakeText).toContain("[channel:review]"), { timeout: 5000 });
+			off();
+			await vi.waitFor(() => {
+				expect(toBranchSessionMessages(session.sessionManager.getBranch())).toEqual(
+					expect.arrayContaining([expect.objectContaining({ role: "channel-wake" })]),
+				);
+			});
+			session.refreshContext();
+			const output = await runner.emitContext([...session.messages]);
+			const text = output
+				.filter((message) => message.role === "custom" || message.role === "user")
+				.map((message) =>
+					typeof message.content === "string"
+						? message.content
+						: message.content
+								.filter((part) => part.type === "text")
+								.map((part) => part.text)
+								.join(""),
+				)
+				.join("\n");
+			expect(text).toContain("[channel:review] 有新消息");
+			expect(text).toContain(".local/agent-work/channel/review/MESSAGES.md");
+			expect(text).not.toContain("<ctx-search-hint>");
 		} finally {
 			session.dispose();
 		}

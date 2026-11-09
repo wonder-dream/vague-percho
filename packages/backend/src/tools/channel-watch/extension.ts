@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import type { ExtensionContext, InlineExtension } from "@earendil-works/pi-coding-agent";
+import { CHANNEL_WAKE_CUSTOM_TYPE } from "@percho/shared";
 import { createLogger } from "../../log";
 import { readChannelWatchEnabled } from "./config";
 import { contentHash, LoopGuard } from "./guard";
@@ -25,12 +26,13 @@ const log = createLogger("channel-watch");
  * - tool_call：write/edit 目标 → guard.markSelfWrite + 记「写前磁盘版本」（自写推进 cursor 的前置条件）
  * - watcher onEvent：订阅过滤 → **仅 `<topic>/MESSAGES.md`** → 读文件 hash → 跨 await 复查生命周期
  *   → cursor 去重 → guard.shouldDeliver（自写/hash/暂停）→ 投递
- *   → sendUserMessage({deliverAs:"followUp"})（流式中排队、空闲立即——SDK prompt 语义）
+ *   → sendMessage(channel-wake, {triggerTurn:true, deliverAs:"followUp"})
+ *   → Magic Context 的自动搜索只处理 user 消息，不把频道控制消息作为查询
  *   → recordDelivered（hash 快照 + 乒乓计数，上限触发暂停 + notify）
  * - session_shutdown：watcher.stop + guard.reset（幂等）
  */
 
-/** 唤醒消息模板（spec channel-post D3，一行固定文案，不携带消息内容） */
+/** 唤醒控制消息：保持单行频道模板，身份由 customType 而非正文前缀承担。 */
 export function buildWakeMessage(topic: string, at: Date = new Date()): string {
 	const p = (n: number): string => String(n).padStart(2, "0");
 	return `[channel:${topic}] 有新消息（${p(at.getHours())}:${p(at.getMinutes())}:${p(at.getSeconds())}），请读 .local/agent-work/channel/${topic}/MESSAGES.md 查收。`;
@@ -82,7 +84,12 @@ export function makeChannelWatchExtension(options: ChannelWatchOptions): InlineE
 			const enabled = options.isEnabled ?? (() => readChannelWatchEnabled(options.agentDir));
 			const guard = new LoopGuard({ now: options.now });
 			const sendWake =
-				options.sendWake ?? ((text: string) => pi.sendUserMessage(text, { deliverAs: "followUp" }));
+				options.sendWake ??
+				((text: string) =>
+					pi.sendMessage(
+						{ customType: CHANNEL_WAKE_CUSTOM_TYPE, content: text, display: true },
+						{ triggerTurn: true, deliverAs: "followUp" },
+					));
 			const readHash = options.readFileHash ?? defaultReadFileHash;
 			const makeWatcher =
 				options.watcherFactory ?? ((opts: ChannelWatcherOptions) => new ChannelWatcher(opts));

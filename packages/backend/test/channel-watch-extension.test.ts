@@ -27,11 +27,14 @@ function makeFakePi() {
 	const tools: Array<{ name: string; execute: (id: string, params: unknown) => Promise<unknown> }> = [];
 	const appended: Array<{ customType: string; data: unknown }> = [];
 	const wakes: string[] = [];
+	const wakeCalls: Array<{ customType: string; display: boolean; triggerTurn: boolean; deliverAs: string }> =
+		[];
 	return {
 		handlers,
 		tools,
 		appended,
 		wakes,
+		wakeCalls,
 		on(event: string, handler: (event: never, ctx: never) => unknown) {
 			const list = handlers.get(event) ?? [];
 			list.push(handler);
@@ -43,8 +46,12 @@ function makeFakePi() {
 		appendEntry(customType: string, data: unknown) {
 			appended.push({ customType, data });
 		},
-		sendUserMessage(text: string) {
-			wakes.push(text);
+		sendMessage(
+			message: { customType: string; content: string; display: boolean },
+			options: { triggerTurn: boolean; deliverAs: string },
+		) {
+			wakes.push(message.content);
+			wakeCalls.push({ customType: message.customType, display: message.display, ...options });
 		},
 		async emit(event: { type: string }, ctx: unknown) {
 			const list = handlers.get(event.type) ?? [];
@@ -285,6 +292,9 @@ describe("extension 全链路", () => {
 		expect(pi.wakes[0]).toMatch(
 			/^\[channel:t1\] 有新消息（\d{2}:\d{2}:\d{2}），请读 \.local\/agent-work\/channel\/t1\/MESSAGES\.md 查收。$/,
 		);
+		expect(pi.wakeCalls).toEqual([
+			{ customType: "channel-wake", display: true, triggerTurn: true, deliverAs: "followUp" },
+		]);
 		// 同内容再写 → hash 未变 → 不再唤醒
 		await writeFile(mf, "## 2026-08-25 10:00 · abc\n\nhi\n\n---\n");
 		await sleep(3900);
@@ -413,7 +423,7 @@ describe("extension 全链路", () => {
 });
 
 describe("buildWakeMessage", () => {
-	it("模板格式（HH:MM:SS）", () => {
+	it("自定义唤醒保留原有单行频道模板", () => {
 		const msg = buildWakeMessage("t1", new Date(2026, 0, 1, 9, 5));
 		expect(msg).toBe(
 			"[channel:t1] 有新消息（09:05:00），请读 .local/agent-work/channel/t1/MESSAGES.md 查收。",

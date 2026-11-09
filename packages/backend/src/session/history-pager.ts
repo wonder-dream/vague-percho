@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import {
+	CHANNEL_WAKE_CUSTOM_TYPE,
 	messagesToUIMessages,
 	previewExcerpt,
 	type SessionHistoryWindow,
@@ -41,6 +42,8 @@ export interface SelectedHistory {
 }
 const user = (entry: SessionEntry | undefined): entry is Extract<SessionEntry, { type: "message" }> =>
 	entry?.type === "message" && entry.message.role === "user";
+const turnStart = (entry: SessionEntry | undefined): boolean =>
+	user(entry) || (entry?.type === "custom_message" && entry.customType === CHANNEL_WAKE_CUSTOM_TYPE);
 const fail = (message: string): never => {
 	throw new Error(`HISTORY_CURSOR_INVALID: ${message}`);
 };
@@ -95,16 +98,16 @@ export class SessionHistoryPager {
 			return fail("invalid cursor fields");
 		return parsed;
 	}
-	/** 只读 user entry 与每轮首段助手正文的轻量导航索引；不投影工具/图片。新鲜度由渲染端 history.generation 驱动重取。 */
+	/** 只读轮次入口与每轮首段助手正文的轻量导航索引；不投影工具/图片。新鲜度由渲染端 history.generation 驱动重取。 */
 	navigation(view: SourceSnapshot, prefix: readonly SessionEntry[]): SessionNavigation {
 		if (prefix.length > view.branch.length || prefix.at(-1)?.id !== view.branch[prefix.length - 1]?.id)
 			return fail("persistent prefix is not from this source");
 		const entries: SessionNavigationEntry[] = [];
 		const clip = (text: string) => previewExcerpt(text, 120);
 		for (const entry of prefix) {
-			if (entry.type !== "message") continue;
-			const raw = entry.message as import("./messages").RawMessage;
-			if (raw.role === "assistant") {
+			if (entry.type !== "message" && !turnStart(entry)) continue;
+			const raw = entry.type === "message" ? (entry.message as import("./messages").RawMessage) : undefined;
+			if (raw?.role === "assistant") {
 				const last = entries.at(-1);
 				if (last && last.reply === undefined) {
 					let reply = this.navigationReplies.get(entry);
@@ -116,15 +119,19 @@ export class SessionHistoryPager {
 				}
 				continue;
 			}
-			if (!user(entry)) continue;
+			if (!turnStart(entry)) continue;
 			let preview = this.navigationUsers.get(entry);
 			if (!preview) {
-				const { text: displayText } = deriveUserMessage(raw);
-				const timestamp = typeof raw.timestamp === "number" ? raw.timestamp : Date.parse(entry.timestamp);
+				const displayText = raw
+					? deriveUserMessage(raw).text
+					: entry.type === "custom_message"
+						? blockText(entry.content)
+						: "";
+				const timestamp = typeof raw?.timestamp === "number" ? raw.timestamp : Date.parse(entry.timestamp);
 				preview = {
 					excerpt: clip(displayText),
 					timestamp: Number.isFinite(timestamp) ? timestamp : 0,
-					images: blockImages(raw.content).length,
+					images: raw ? blockImages(raw.content).length : 0,
 				};
 				this.navigationUsers.set(entry, preview);
 			}
@@ -196,7 +203,7 @@ export class SessionHistoryPager {
 			view.branch[parsed.branchAt]?.id !== parsed.branch ||
 			prefix[parsed.anchorAt]?.id !== parsed.anchor ||
 			prefix[parsed.beforeAt]?.id !== parsed.before ||
-			!user(prefix[parsed.beforeAt])
+			!turnStart(prefix[parsed.beforeAt])
 		)
 			return fail("branch or page boundary changed");
 		return parsed;
@@ -225,7 +232,7 @@ export class SessionHistoryPager {
 			while (start > 0) {
 				start--;
 				this.counts.selectedEntries++;
-				if (user(prefix[start]) && ++rounds === limit) break;
+				if (turnStart(prefix[start]) && ++rounds === limit) break;
 			}
 			// 前导无user段也必须最终可取回。工具结果若跨user边界，向前扩到真实调用所在整轮。
 			let scan = start;
@@ -247,7 +254,7 @@ export class SessionHistoryPager {
 					) {
 						let call = ancestorAt;
 						if (call < start) {
-							while (call > 0 && !user(prefix[call])) {
+							while (call > 0 && !turnStart(prefix[call])) {
 								this.counts.selectedEntries++;
 								call--;
 							}
@@ -275,8 +282,8 @@ export class SessionHistoryPager {
 			this.counts.pages++;
 			const first = selected[0]?.id,
 				hasOlder = start > 0;
-			let pageTurns = start === 0 && selected.length > 0 && !user(selected[0]) ? 1 : 0;
-			for (const entry of selected) if (user(entry)) pageTurns++;
+			let pageTurns = start === 0 && selected.length > 0 && !turnStart(selected[0]) ? 1 : 0;
+			for (const entry of selected) if (turnStart(entry)) pageTurns++;
 			const history: SessionHistoryWindow = {
 				generation: cursor.generation,
 				sourceVersion: view.version,

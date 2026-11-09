@@ -1,5 +1,6 @@
 import { parseSessionEntries, type SessionEntry, type SessionManager } from "@earendil-works/pi-coding-agent";
 import {
+	CHANNEL_WAKE_CUSTOM_TYPE,
 	composerDocumentText,
 	displayImagesFromDetails,
 	extractSubagentRuns,
@@ -205,12 +206,21 @@ export function toBranchSessionMessages(
 	branch: readonly SessionEntry[],
 	ownerSessionId?: string,
 ): SessionMessage[] {
-	// 摊平成「消息 + 压缩标记」混合流后再走 toSessionMessages：toolResult 靠 toolCallId 配对，
+	// 摊平成「消息 + 压缩标记 + 频道唤醒」混合流后再走 toSessionMessages：toolResult 靠 toolCallId 配对，
 	// 标记插在中间不影响回填；assignEntryIds 只认 user/assistant，自动跳过标记
 	const raw: unknown[] = [];
 	for (const entry of branch) {
 		if (entry.type === "message") raw.push({ ...entry.message, sourceEntryId: entry.id });
 		else if (entry.type === "compaction") raw.push(compactionMarker(entry));
+		else if (entry.type === "custom_message" && entry.customType === CHANNEL_WAKE_CUSTOM_TYPE) {
+			const timestamp = Date.parse(entry.timestamp);
+			raw.push({
+				role: CHANNEL_WAKE_CUSTOM_TYPE,
+				content: entry.content,
+				sourceEntryId: entry.id,
+				timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
+			});
+		}
 	}
 	const messages = toSessionMessages(raw, ownerSessionId);
 	assignEntryIds(messages, branch);
@@ -242,6 +252,15 @@ export function toSessionMessages(
 	for (const raw of rawMessages as RawMessage[]) {
 		const start = out.length;
 		try {
+			if (raw.role === CHANNEL_WAKE_CUSTOM_TYPE) {
+				out.push({
+					role: CHANNEL_WAKE_CUSTOM_TYPE,
+					text: blockText(raw.content),
+					timestamp: raw.timestamp ?? Date.now(),
+					...(raw.sourceEntryId ? { entryId: raw.sourceEntryId } : {}),
+				});
+				continue;
+			}
 			if (raw.role === "compaction") {
 				// 历史回放的压缩分割线（实时路径由 compaction_start/end 事件产生）
 				out.push({
