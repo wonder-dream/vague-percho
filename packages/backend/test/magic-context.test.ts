@@ -1,6 +1,9 @@
+import { execFile } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import {
 	createAgentSession,
 	DefaultResourceLoader,
@@ -15,6 +18,8 @@ import {
 	readMagicContextHfEndpoint,
 	writeMagicContextHfEndpoint,
 } from "../src/settings/magic-context";
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Magic Context 集成冒烟：在真实 SDK 会话里加载 @cortexkit/pi-magic-context。
@@ -85,6 +90,13 @@ describe("Magic Context 内置集成", () => {
 		} finally {
 			session.dispose();
 		}
+	});
+
+	it("WASM 注入不加载已排除的原生库，并保留文件缓存", { timeout: 30_000 }, async () => {
+		const probe = fileURLToPath(new URL("./fixtures/magic-context-wasm-probe.cjs", import.meta.url));
+		const { stdout } = await execFileAsync(process.execPath, [probe], { timeout: 30_000 });
+		const result = JSON.parse(stdout.trim().split(/\r?\n/).at(-1) ?? "{}");
+		expect(result).toEqual({ ok: true, nativeLoaded: false, fsCache: true });
 	});
 });
 

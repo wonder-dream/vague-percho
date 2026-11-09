@@ -38,3 +38,15 @@ index 2ce7359..5bb6255 100644
              [MAGIC_CONTEXT_PI_SUBAGENT_ENV]: "1",
              MAGIC_CONTEXT_SUBAGENT_PROMPT_FILE: systemPromptPath,
              [HISTORIAN_CACHE_TAIL_ENV2]: /^(magic-context-)?historian(?:-recomp)?$/.test(options.agent) && options.accountingSubagent !== "historian_editor" ? options.cacheTail : undefined,
+diff --git a/node_modules/@cortexkit/pi-magic-context/dist/transformers.node-3zqr6k1w.js b/node_modules/@cortexkit/pi-magic-context/dist/transformers.node-3zqr6k1w.js
+--- a/node_modules/@cortexkit/pi-magic-context/dist/transformers.node-3zqr6k1w.js
++++ b/node_modules/@cortexkit/pi-magic-context/dist/transformers.node-3zqr6k1w.js
+@@ -7812,5 +7812,6 @@
+ }();
+ var requireFromHere = createRequire(import.meta.url ?? __filename);
+ process.env.ORT_DISABLE_TELEMETRY = "1";
+-var onnx_node_default = requireFromHere("onnxruntime-node");
++// percho: an injected WASM runtime does not need the optional native binding.
++var onnx_node_default = globalThis[Symbol.for("onnxruntime")] ? void 0 : requireFromHere("onnxruntime-node");
+ var ort_webgpu_bundle_min_exports = {};
+ __export(ort_webgpu_bundle_min_exports, {
