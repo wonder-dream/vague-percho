@@ -110,7 +110,9 @@ try {
 	await mkdir(join(stage, "licenses"));
 	for (const [name, tool] of Object.entries(tools)) {
 		const url = tool.url.replace("{target}", arch === "arm64" ? "aarch64" : "x86_64");
-		const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+		const proxy = process.env.PERCHO_RUNTIME_TOOL_PROXY;
+		const downloadUrl = proxy ? `${proxy}${url}` : url;
+		const response = await fetch(downloadUrl, { signal: AbortSignal.timeout(120000) });
 		if (!response.ok) throw new Error(`Failed to obtain pinned ${name}: ${response.status}`);
 		const data = Buffer.from(await response.arrayBuffer());
 		if (data.length > 10 * 1024 * 1024 || createHash("sha256").update(data).digest("hex") !== tool[arch])
