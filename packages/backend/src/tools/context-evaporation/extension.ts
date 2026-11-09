@@ -17,7 +17,7 @@ const log = createLogger("context-evaporation");
  *   → 有动作时 reporter(batch)（P3 起接 trace）；Tier 0 / 无变化返回 undefined 零干扰
  * - session_compact：重置决策 Map（arch §4.2：compact 边界前的 part 整体消失，防幽灵决策）
  *
- * 常开策略：蒸发是内置能力，不暴露用户开关；`isEnabled` 仅供测试注入关闭路径。
+ * 默认常开，不暴露用户开关；宿主在 Magic Context 接管窗口时用 `isEnabled` 让位。
  *
  * 扩展不注册任何工具、不改 system prompt——stub 自带恢复指令，零 prompt 污染。
  */

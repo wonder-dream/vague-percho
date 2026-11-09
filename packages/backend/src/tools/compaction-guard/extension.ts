@@ -16,6 +16,8 @@ const log = createLogger("compaction-guard");
 /** 摘要输入限制与观测。主动触发由请求前宿主策略负责，结束事件不再调用 compact。 */
 export interface CompactionGuardExtensionOptions {
 	agentDir: string;
+	/** Magic Context 注册 ctx_reduce 时拥有窗口，跳过 Pi 原生摘要预处理。 */
+	isContextManagedElsewhere?: () => boolean;
 	getConfig?: () => CompactionGuardConfig;
 	reporter?: (sessionId: string, observation: CompactionGuardObservation) => void;
 	serialize?: (messages: GuardMessage[]) => string;
@@ -70,6 +72,7 @@ export function makeCompactionGuardExtension(options: CompactionGuardExtensionOp
 			});
 			// --- 摘要输入有界（层 1 降级 + 层 2 硬上限，spec D3） ---
 			pi.on("session_before_compact", (event, ctx) => {
+				if (options.isContextManagedElsewhere?.()) return undefined;
 				// 同步改 `preparation`（与 SDK 默认摘要路径同对象，spec §2），不 await
 				try {
 					sessionIdOf(ctx);

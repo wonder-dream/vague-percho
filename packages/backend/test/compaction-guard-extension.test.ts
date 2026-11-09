@@ -112,6 +112,7 @@ function makeFakeStream(step: Step | ((callIndex: number) => Step)) {
 }
 
 interface SetupOptions {
+	magicOwnsWindow?: () => boolean;
 	contextWindow?: number;
 	maxTokens?: number;
 	/** settings.json 的 compaction 段（SDK 设置：enabled / reserveTokens / keepRecentTokens） */
@@ -177,6 +178,7 @@ async function setup(options: SetupOptions = {}) {
 	const observations: CompactionGuardObservation[] = [];
 	const extension = makeCompactionGuardExtension({
 		agentDir,
+		isContextManagedElsewhere: options.magicOwnsWindow,
 		reporter: (_sessionId, observation) => {
 			observations.push(observation);
 		},
@@ -282,6 +284,21 @@ const summarizationPrompts = (captures: Capture[]): string =>
 		.join("\n---\n");
 
 describe("A4 / A6① 摘要请求真的变小（思考正文消失 · toolResult 中段截掉 · 整体估算 ≤ cap）", () => {
+	it("Magic owns the window: the Percho summary hook stays inactive", async () => {
+		const { session, observations, captures } = await setup({
+			magicOwnsWindow: () => true,
+			sdkCompaction: { reserveTokens: 2000 },
+			history: bigHistory(),
+		});
+		try {
+			await session.compact();
+			expect(summarizationPrompts(captures)).toContain(`${SECRET_MIDDLE}-1-`);
+			expect(observations.some((observation) => observation.phase === "bound")).toBe(false);
+		} finally {
+			session.dispose();
+		}
+	});
+
 	it("手动 compact()：保护区外降级，摘要器读到的是替换后的内容", async () => {
 		const { session, captures, observations, cap } = await setup({
 			contextWindow: 20_000,

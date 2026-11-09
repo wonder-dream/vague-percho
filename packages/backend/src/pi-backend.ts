@@ -92,6 +92,7 @@ import {
 	type PermissionModeRef,
 } from "./permissions/extension";
 import { PermissionGate } from "./permissions/gate";
+import { magicContextOwnsWindow } from "./project/builtin-extensions";
 import { validateProjectDirectory, validateProjectReference } from "./project/directory";
 import { walkProjectFiles } from "./project/files";
 import { TrustGate } from "./project/trust";
@@ -567,6 +568,11 @@ export class PiBackend {
 	 * emit 该事件（见 `session/shutdown.ts`）仍显式调这里 —— 两道都触发时 cleanup 幂等，重复无害。
 	 */
 	private readonly channelWatchCleanups = new WeakMap<PermissionModeRef, () => void>();
+	private readonly magicContextOwners = new WeakMap<PermissionModeRef, boolean>();
+	private updateContextOwner(modeRef: PermissionModeRef, ownsContext: boolean): void {
+		this.magicContextOwners.set(modeRef, ownsContext);
+		log.info("context manager selected", { owner: ownsContext ? "magic-context" : "percho" });
+	}
 	/** 每会话事件速率（60s 窗口；心跳/临终快照数据源） */
 	private readonly eventRates = new EventRateTracker();
 	private modelRuntime: ModelRuntime | undefined;
@@ -705,13 +711,14 @@ export class PiBackend {
 				}),
 			);
 		}
-		// 上下文蒸发（默认开启：缺省 mode=evaporation；钩子实时读派生 mode，
-		// 设置页切换后 ≤2s 生效，无需重开会话）。
+		// 上下文蒸发在 Percho 管理窗口时开启；Magic Context 注册 ctx_reduce 时
+		// 让位，避免两套 context 钩子连续改写同一条消息。
 		// 批次上报双通道：log（快速 grep）+ trace_custom 行（灰度分析脚本直读，
 		// reducer 未知类型 no-op，replay-trace.mts 重放安全）
 		factories.push(
 			makeEvapExtension({
 				agentDir: getAgentDir(),
+				isEnabled: () => !modeRef || this.magicContextOwners.get(modeRef) !== true,
 				reporter: (sessionId, batch) => {
 					reportEvapBatch(sessionId, batch);
 					this.traces.recordCustom(sessionId, "evap_batch", batch);
@@ -723,6 +730,7 @@ export class PiBackend {
 		factories.push(
 			makeCompactionGuardExtension({
 				agentDir: getAgentDir(),
+				isContextManagedElsewhere: () => !!modeRef && this.magicContextOwners.get(modeRef) === true,
 				reporter: (sessionId, observation) => {
 					this.traces.recordCustom(sessionId, "compaction_guard", observation);
 				},
@@ -1299,7 +1307,16 @@ export class PiBackend {
 			});
 			endCreate();
 			candidate = session;
-			if (!readOnly) session.setCompactionPolicy(createCompactionRequestPolicy(getAgentDir()));
+			// 已加载的工具决定窗口所有权，而非设置开关：Magic 知识层模式不注册 ctx_reduce。
+			this.updateContextOwner(modeRef, magicContextOwnsWindow(extensionsResult));
+			if (!readOnly)
+				session.setCompactionPolicy(
+					createCompactionRequestPolicy(
+						getAgentDir(),
+						undefined,
+						() => this.magicContextOwners.get(modeRef) === true,
+					),
+				);
 			this.assertRunning();
 			const mutex = applySubagentMutex(session, extensionsResult, preferBuiltin);
 			if (mutex.shadowed.length > 0) {
@@ -2550,7 +2567,12 @@ export class PiBackend {
 			}
 			try {
 				this.assertRunning();
+				this.magicContextOwners.set(entry.modeRef, false);
 				await entry.session.reload();
+				this.updateContextOwner(
+					entry.modeRef,
+					magicContextOwnsWindow(entry.session.resourceLoader.getExtensions()),
+				);
 				reloaded++;
 			} catch (err) {
 				log.warn("session reload failed", entry.session.sessionId, err);

@@ -14,7 +14,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { parse } from "jsonc-parser";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { builtinExtensions } from "../src/project/builtin-extensions";
+import { builtinExtensions, magicContextOwnsWindow } from "../src/project/builtin-extensions";
 import { toBranchSessionMessages } from "../src/session/messages";
 import {
 	applyMagicContextEnv,
@@ -91,10 +91,32 @@ describe("Magic Context 内置集成", () => {
 		try {
 			expect(extensionsResult.errors).toEqual([]);
 			expect(extensionsResult.extensions.map((e) => e.path)).toContain("<inline:magic-context>");
+			expect(magicContextOwnsWindow(extensionsResult)).toBe(true);
 			const tools = session.getAllTools().map((tool) => tool.name);
 			// 扩展核心工具：记忆检索/写入
 			expect(tools.some((name) => name.startsWith("ctx_"))).toBe(true);
 			console.log("magic-context tools:", tools.filter((name) => name.startsWith("ctx_")).join(", "));
+		} finally {
+			session.dispose();
+		}
+	});
+
+	it("仅启用知识层时仍由 Percho 管理窗口", { timeout: 60_000 }, async () => {
+		const { root, agentDir, cwd } = sandbox();
+		writeFileSync(join(agentDir, "magic-context.json"), JSON.stringify({ enabled: true }));
+		mkdirSync(join(root, "config", "cortexkit"), { recursive: true });
+		writeFileSync(
+			join(root, "config", "cortexkit", "magic-context.jsonc"),
+			'{ "compaction": { "enabled": false } }',
+		);
+		const { session, extensionsResult } = await loadSession(agentDir, cwd, root);
+		try {
+			expect(extensionsResult.errors).toEqual([]);
+			expect(extensionsResult.extensions.map((e) => e.path)).toContain("<inline:magic-context>");
+			expect(magicContextOwnsWindow(extensionsResult)).toBe(false);
+			const tools = session.getAllTools().map((tool) => tool.name);
+			expect(tools).toContain("ctx_search");
+			expect(tools).not.toContain("ctx_reduce");
 		} finally {
 			session.dispose();
 		}

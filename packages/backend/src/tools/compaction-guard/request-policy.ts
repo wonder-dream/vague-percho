@@ -31,16 +31,21 @@ export function describeCompactionError(error: unknown): string {
 export function createCompactionRequestPolicy(
 	agentDir: string,
 	getConfig: () => CompactionGuardConfig = () => readCompactionGuardConfig(agentDir),
+	isContextManagedElsewhere: () => boolean = () => false,
 ): CompactionRequestPolicy {
 	return {
-		enabled: () => getConfig().enabled,
+		// 保留宿主队列/请求生命周期；Magic 接管窗口时只让压缩判定不触发，
+		// 避免回退到会被 Magic 拦截的 SDK 原生压缩。
+		enabled: () => isContextManagedElsewhere() || getConfig().enabled,
 		evaluate: ({ tokens, contextWindow, settings }) =>
-			decideRequestCompaction({
-				tokens,
-				contextWindow,
-				reserveTokens: settings.reserveTokens,
-				thresholdPct: getConfig().thresholdPct,
-			}),
+			isContextManagedElsewhere()
+				? { trigger: false, thresholdTokens: 0 }
+				: decideRequestCompaction({
+						tokens,
+						contextWindow,
+						reserveTokens: settings.reserveTokens,
+						thresholdPct: getConfig().thresholdPct,
+					}),
 		normalizeMessage: normalizeComposerMessage,
 		describeError: describeCompactionError,
 		onResult: ({ status, ...detail }) =>

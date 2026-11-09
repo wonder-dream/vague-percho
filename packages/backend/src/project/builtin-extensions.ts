@@ -1,5 +1,9 @@
 /// <reference path="./magic-context-module.d.ts" />
-import type { ExtensionFactory, InlineExtension } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionFactory,
+	InlineExtension,
+	LoadExtensionsResult,
+} from "@earendil-works/pi-coding-agent";
 import {
 	createCodemodeExtension,
 	createMcpExtension,
@@ -8,6 +12,13 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { readCodemodeConfig } from "../settings/codemode";
 import { applyMagicContextEnv, readMagicContextEnabled } from "../settings/magic-context";
+
+/** Loaded capabilities, not the settings toggle, decide who owns the context window. */
+export function magicContextOwnsWindow(extensions: LoadExtensionsResult): boolean {
+	return extensions.extensions.some(
+		(extension) => extension.path === "<inline:magic-context>" && extension.tools.has("ctx_reduce"),
+	);
+}
 
 /**
  * 官方内置扩展（照抄 CLI 侧元数据，spec §4.1）—— 不要自己发明字段：

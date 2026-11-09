@@ -173,6 +173,27 @@ function virtualModel() {
 }
 
 describe("compaction cross-scenario regressions", () => {
+	it("hands the window to Magic without disabling the host request lifecycle", () => {
+		let magicOwnsWindow = true;
+		const policy = createCompactionRequestPolicy(
+			"unused",
+			() => ({
+				enabled: false,
+				thresholdPct: 50,
+				hardCapRatio: 0.5,
+				protectTurns: 0,
+				toolResultChars: 1000,
+				cooldownMs: 0,
+			}),
+			() => magicOwnsWindow,
+		);
+		const usage = { tokens: 90_000, contextWindow: 100_000, settings: { reserveTokens: 1000 } };
+		expect(policy.enabled()).toBe(true);
+		expect(policy.evaluate(usage).trigger).toBe(false);
+		magicOwnsWindow = false;
+		expect(policy.enabled()).toBe(false);
+	});
+
 	it("saves input on normal routing failure and allows an ordinary manual retry", async () => {
 		const f = await fixture({ usage: 100 });
 		const route = vi.fn(async () => {
