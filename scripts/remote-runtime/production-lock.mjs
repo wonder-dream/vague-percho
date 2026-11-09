@@ -3,7 +3,11 @@ import nodePolicy from "../../packages/shared/src/runtime-node-policy.json" with
 
 /** Select exact installed lock entries, without introducing another dependency/version solver. */
 export function runtimeBuildLock(lock, version) {
-	const dependencies = { "@earendil-works/pi-coding-agent": "1.4.0", "@earendil-works/pi-ai": "1.4.0" };
+	const dependencies = {
+		"@earendil-works/pi-coding-agent": "1.4.0",
+		"@earendil-works/pi-ai": "1.4.0",
+		"jsonc-parser": "3.3.1",
+	};
 	const devDependencies = { esbuild: "0.25.12", "patch-package": "8.0.1" };
 	const packages = {};
 	const production = new Set();
@@ -82,6 +86,7 @@ export function runtimeBuildLock(lock, version) {
 export function runtimeBuildAliases(repo, stage) {
 	return {
 		"@percho/shared": join(repo, "packages/shared/src/index.ts"),
+		"jsonc-parser": join(stage, "node_modules/jsonc-parser/lib/esm/main.js"),
 		typebox: join(stage, "node_modules/percho-typebox-build"),
 		semver: join(stage, "node_modules/percho-semver-build"),
 	};

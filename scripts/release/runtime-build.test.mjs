@@ -12,9 +12,12 @@ const lock = JSON.parse(await readFile(join(root, "package-lock.json"), "utf8"))
 const sharedRequire = createRequire(join(root, "packages/shared/package.json"));
 const semverPath = sharedRequire.resolve("semver/package.json");
 const semver = JSON.parse(await readFile(semverPath, "utf8"));
+const jsoncPath = sharedRequire.resolve("jsonc-parser/package.json");
 
 test("runtime build lock pins shared semver as an isolated build dependency", () => {
 	const selected = runtimeBuildLock(lock, "0.0.0-test");
+	assert.equal(selected.manifest.dependencies["jsonc-parser"], "3.3.1");
+	assert.equal(selected.lock.packages["node_modules/jsonc-parser"].dev, undefined);
 	assert.equal(selected.manifest.devDependencies["percho-semver-build"], `npm:semver@${semver.version}`);
 	assert.equal(selected.lock.packages["node_modules/percho-semver-build"].version, semver.version);
 	assert.equal(selected.lock.packages["node_modules/percho-semver-build"].dev, true);
@@ -33,6 +36,7 @@ test("runtime bundle resolves semver subpaths without checkout dependencies", as
 	await cp(join(root, "packages/shared/src/packages.ts"), join(shared, "packages.ts"));
 	const aliases = runtimeBuildAliases(source, stage);
 	await cp(dirname(semverPath), aliases.semver, { recursive: true });
+	await cp(dirname(jsoncPath), dirname(dirname(dirname(aliases["jsonc-parser"]))), { recursive: true });
 	const typeboxKey = lock.packages["packages/backend/node_modules/typebox"]
 		? "packages/backend/node_modules/typebox"
 		: "node_modules/typebox";
@@ -42,8 +46,10 @@ test("runtime bundle resolves semver subpaths without checkout dependencies", as
 		`
 		import { isNewerVersion } from "./packages/shared/src/packages";
 		import { Type } from "typebox";
+		import { parse } from "jsonc-parser";
 		export const newer = isNewerVersion("1.2.0", "1.2.0-beta.1");
 		export const schema = Type.Object({ version: Type.String() });
+		export const config = parse('{"enabled":true}');
 	`,
 	);
 	const outfile = join(stage, "check.mjs");
@@ -61,7 +67,7 @@ test("runtime bundle resolves semver subpaths without checkout dependencies", as
 				name: "no-checkout-dependencies",
 				setup(builder) {
 					// CI masks checkout node_modules. Do not let local ancestor installs hide a missing alias.
-					builder.onResolve({ filter: /^(semver|typebox)(\/|$)/ }, async (args) => {
+					builder.onResolve({ filter: /^(semver|typebox|jsonc-parser)(\/|$)/ }, async (args) => {
 						if (args.pluginData?.checked) return;
 						const resolved = await builder.resolve(args.path, {
 							resolveDir: args.resolveDir,
@@ -89,4 +95,5 @@ test("runtime bundle resolves semver subpaths without checkout dependencies", as
 	const result = await import(pathToFileURL(outfile).href);
 	assert.equal(result.newer, true);
 	assert.equal(result.schema.type, "object");
+	assert.deepEqual(result.config, { enabled: true });
 });
