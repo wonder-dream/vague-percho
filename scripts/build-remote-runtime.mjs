@@ -56,7 +56,10 @@ try {
 	);
 	await writeFile(join(stage, "package.json"), JSON.stringify(selected.manifest, null, 2));
 	await writeFile(join(stage, "package-lock.json"), JSON.stringify(selected.lock, null, 2));
-	await run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"]);
+	// 锁文件的 tarball 地址指向 npmmirror。GitHub runner 不能依赖这面镜像：
+	// 它的包库 500 会让整次打包失败。完整性仍以锁文件为准，包内容不变。
+	const fromNpmjs = ["--registry", "https://registry.npmjs.org", "--replace-registry-host", "always"];
+	await run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund", ...fromNpmjs]);
 	const patches = join(work, "patches");
 	await mkdir(patches);
 	for (const name of [
@@ -129,7 +132,7 @@ try {
 				await cp(join(unpacked, file), join(stage, "licenses", `${name}-${file}`));
 		await run(join(stage, "bin", name), ["--version"]);
 	}
-	await run("npm", ["prune", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"]);
+	await run("npm", ["prune", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund", ...fromNpmjs]);
 	delete selected.manifest.devDependencies;
 	selected.manifest.perchoRuntime = {
 		releaseId,
