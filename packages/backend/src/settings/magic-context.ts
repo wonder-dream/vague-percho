@@ -1,10 +1,14 @@
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
+import type { MagicContextAgent, MagicContextModelSettings } from "@percho/shared";
+import { applyEdits, modify, type ParseError, parse } from "jsonc-parser";
 import { JsonStore } from "../json-store";
 
 /**
  * Magic Context（@cortexkit/pi-magic-context）开关：存 agentDir/magic-context.json，缺省关闭。
  * 开启后会在后台调用模型（historian/dreamer）并在 ~/.local/share/cortexkit 落库，所以必须用户显式打开。
- * 扩展自身的细项配置仍走它的 magic-context.jsonc（CortexKit 共享目录），这里只管「装不装」。
+ * 扩展自身的细项配置走它的 magic-context.jsonc（CortexKit 共享目录）；设置页暴露的后台角色模型也由本模块读写。
  */
 function store(agentDir: string) {
 	return new JsonStore<{ enabled?: boolean; hfEndpoint?: string }>({
@@ -73,4 +77,100 @@ export async function writeMagicContextEnabled(agentDir: string, enabled: boolea
 	await store(agentDir).update((draft) => {
 		draft.enabled = enabled;
 	});
+}
+
+type MagicContextDocument = Record<string, unknown>;
+
+function configPath(): string {
+	const configHome = process.env.XDG_CONFIG_HOME?.trim() || join(homedir(), ".config");
+	return join(configHome, "cortexkit", "magic-context.jsonc");
+}
+
+function parseDocument(raw: string, path: string): MagicContextDocument {
+	const errors: ParseError[] = [];
+	const value: unknown = parse(raw, errors, { allowTrailingComma: true, disallowComments: false });
+	if (errors.length > 0 || !value || typeof value !== "object" || Array.isArray(value)) {
+		throw new Error(`Magic Context 配置文件损坏：${path}，请修复后重试`);
+	}
+	return value as MagicContextDocument;
+}
+
+function readDocument(): { path: string; value: MagicContextDocument } {
+	const path = configPath();
+	let raw: string;
+	try {
+		raw = readFileSync(path, "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return { path, value: {} };
+		throw error;
+	}
+	return { path, value: parseDocument(raw, path) };
+}
+
+function objectValue(value: unknown): MagicContextDocument | null {
+	return value && typeof value === "object" && !Array.isArray(value) ? (value as MagicContextDocument) : null;
+}
+
+function readAgentModel(document: MagicContextDocument, agent: MagicContextAgent): string {
+	const pi = objectValue(objectValue(document[agent])?.pi);
+	const model = pi?.model;
+	if (typeof model === "string") return model.trim();
+	const objectModel = objectValue(model)?.model;
+	return typeof objectModel === "string" ? objectModel.trim() : "";
+}
+
+function modelSettings(document: MagicContextDocument): MagicContextModelSettings {
+	return {
+		historian: readAgentModel(document, "historian"),
+		dreamer: readAgentModel(document, "dreamer"),
+	};
+}
+
+export function readMagicContextModelSettings(): MagicContextModelSettings {
+	return modelSettings(readDocument().value);
+}
+
+function normalizeModelRef(modelRef: string | null): string {
+	const value = modelRef?.trim() ?? "";
+	if (!value) return "";
+	const separator = value.indexOf("/");
+	if (separator <= 0 || separator === value.length - 1) {
+		throw new Error("Magic Context 模型必须使用 provider/modelId 格式");
+	}
+	return value;
+}
+
+/** 写用户级共享 JSONC；JsonStore 提供同路径串行读改写和原子替换，注释/其他字段由 jsonc-parser 保留。 */
+export async function writeMagicContextAgentModel(
+	agent: MagicContextAgent,
+	modelRef: string | null,
+): Promise<MagicContextModelSettings> {
+	const value = normalizeModelRef(modelRef);
+	const path = configPath();
+	const textStore = new JsonStore<string>({
+		path,
+		defaultValue: () => "{}\n",
+		parse: (raw) => {
+			parseDocument(raw, path);
+			return raw;
+		},
+		stringify: (raw) => raw,
+	});
+	let saved: MagicContextModelSettings | null = null;
+	await textStore.update((raw) => {
+		const document = parseDocument(raw, path);
+		const currentModel = objectValue(objectValue(document[agent])?.pi)?.model;
+		const preserveObject = value !== "" && objectValue(currentModel) !== null;
+		const edits = modify(
+			raw,
+			[agent, "pi", "model", ...(preserveObject ? ["model"] : [])],
+			value || undefined,
+			{ formattingOptions: { insertSpaces: true, tabSize: 2, eol: raw.includes("\r\n") ? "\r\n" : "\n" } },
+		);
+		const output = applyEdits(raw, edits);
+		saved = modelSettings(parseDocument(output, path));
+		return output;
+	});
+	if (!saved) throw new Error("Magic Context 模型配置保存失败");
+	return saved;
 }

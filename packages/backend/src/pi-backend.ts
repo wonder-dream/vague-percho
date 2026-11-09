@@ -36,6 +36,8 @@ import type {
 	ImageInput,
 	LoadedResources,
 	LoginEventPayload,
+	MagicContextAgent,
+	MagicContextConfigInfo,
 	McpConfigListResult,
 	McpGlobalNotice,
 	McpMutationResult,
@@ -153,6 +155,8 @@ import { LoginService } from "./settings/login";
 import {
 	readMagicContextEnabled,
 	readMagicContextHfEndpoint,
+	readMagicContextModelSettings,
+	writeMagicContextAgentModel,
 	writeMagicContextEnabled,
 	writeMagicContextHfEndpoint,
 } from "./settings/magic-context";
@@ -2641,11 +2645,12 @@ export class PiBackend {
 		await writeCodemodeEnabled(getAgentDir(), enabled);
 	}
 
-	/** Magic Context 开关（agentDir/magic-context.json，缺省关）；内置扩展列表在新会话构建时读取 */
-	getMagicContextConfig(): { enabled: boolean; hfEndpoint: string } {
+	/** Magic Context 设置；开关与镜像在 agentDir，后台角色模型在 CortexKit 用户级 JSONC。 */
+	getMagicContextConfig(): MagicContextConfigInfo {
 		return {
 			enabled: readMagicContextEnabled(getAgentDir()),
 			hfEndpoint: readMagicContextHfEndpoint(getAgentDir()),
+			models: readMagicContextModelSettings(),
 		};
 	}
 	setMagicContextHfEndpoint(endpoint: string): Promise<string> {
@@ -2653,6 +2658,9 @@ export class PiBackend {
 	}
 	async setMagicContextEnabled(enabled: boolean): Promise<void> {
 		await writeMagicContextEnabled(getAgentDir(), enabled);
+	}
+	setMagicContextAgentModel(agent: MagicContextAgent, modelRef: string | null) {
+		return writeMagicContextAgentModel(agent, modelRef);
 	}
 
 	/** channel-watch 总开关（设置 UI 用；键在 ~/.percho/agent/settings.json，缺省=开） */

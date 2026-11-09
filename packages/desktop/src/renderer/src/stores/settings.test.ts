@@ -6,6 +6,16 @@ const piMock = vi.hoisted(() => ({
 	getPermissionConfig: vi.fn(() => Promise.resolve({ enabled: true })),
 	getChannelWatchConfig: vi.fn(() => Promise.resolve({ enabled: true })),
 	getCodemodeConfig: vi.fn(() => Promise.resolve({ enabled: true, only: false })),
+	getMagicContextConfig: vi.fn(() =>
+		Promise.resolve({
+			enabled: false,
+			hfEndpoint: "",
+			models: { historian: "", dreamer: "" },
+		}),
+	),
+	setMagicContextAgentModel: vi.fn(() =>
+		Promise.resolve({ historian: "deepseek/deepseek-flash", dreamer: "" }),
+	),
 	setCodemodeOnly: vi.fn(() => Promise.resolve()),
 	setCodemodeEnabled: vi.fn(() => Promise.resolve()),
 	setChannelWatchEnabled: vi.fn(() => Promise.resolve()),
@@ -32,6 +42,9 @@ function resetStore() {
 		codemodeEnabled: null,
 		codemodeOnly: null,
 		codemodeSaving: false,
+		magicContextEnabled: null,
+		magicContextHfEndpoint: null,
+		magicContextModels: null,
 		error: null,
 		loading: false,
 	});
@@ -40,6 +53,31 @@ function resetStore() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	resetStore();
+});
+
+describe("Magic Context 后台角色模型", () => {
+	it("加载配置并发布保存后的模型选择", async () => {
+		piMock.getMagicContextConfig.mockResolvedValueOnce({
+			enabled: true,
+			hfEndpoint: "https://hf-mirror.com",
+			models: { historian: "", dreamer: "deepseek/deepseek-reasoner" },
+		});
+		await useSettingsStore.getState().refresh();
+		expect(useSettingsStore.getState().magicContextModels).toEqual({
+			historian: "",
+			dreamer: "deepseek/deepseek-reasoner",
+		});
+
+		await useSettingsStore.getState().setMagicContextAgentModel("historian", "deepseek/deepseek-flash");
+		expect(piMock.setMagicContextAgentModel).toHaveBeenCalledWith({
+			agent: "historian",
+			modelRef: "deepseek/deepseek-flash",
+		});
+		expect(useSettingsStore.getState().magicContextModels).toEqual({
+			historian: "deepseek/deepseek-flash",
+			dreamer: "",
+		});
+	});
 });
 
 describe("settings store：channelWatchEnabled（乐观更新 + 失败回滚）", () => {

@@ -67,6 +67,9 @@ import type {
 	ListProvidersOptions,
 	LoginEventPayload,
 	LoginResult,
+	MagicContextAgent,
+	MagicContextConfigInfo,
+	MagicContextModelSettings,
 	ModelPrefs,
 	ProviderInfo,
 	ProviderTestResult,
@@ -776,10 +779,7 @@ export const SETTINGS_CHANNELS = {
 		"mutation",
 	)<{ mode: CacheWarmingMode }, CacheWarmingInfo>({ mode: input.oneOf(...CACHE_WARMING_MODES) }),
 	/** Magic Context（跨会话记忆，内置扩展）开关；默认关闭，新会话生效 */
-	getMagicContextConfig: ch("magicContext:getConfig", "environment", "read")<
-		void,
-		{ enabled: boolean; hfEndpoint: string }
-	>(),
+	getMagicContextConfig: ch("magicContext:getConfig", "environment", "read")<void, MagicContextConfigInfo>(),
 	/** 嵌入模型下载镜像（HF_ENDPOINT）；空串清除；返回规范化后的地址 */
 	setMagicContextHfEndpoint: ch(
 		"magicContext:setHfEndpoint",
@@ -791,6 +791,15 @@ export const SETTINGS_CHANNELS = {
 		"environment",
 		"mutation",
 	)<{ enabled: boolean }, void>({ enabled: input.boolean }),
+	/** Historian/Dreamer 的聊天模型；null 或空串 = 不启用，新会话生效 */
+	setMagicContextAgentModel: ch(
+		"magicContext:setAgentModel",
+		"environment",
+		"mutation",
+	)<{ agent: MagicContextAgent; modelRef: string | null }, MagicContextModelSettings>({
+		agent: input.oneOf("historian", "dreamer"),
+		modelRef: input.nullable(input.text),
+	}),
 	setCodemodeEnabled: ch(
 		"codemode:setEnabled",
 		"environment",

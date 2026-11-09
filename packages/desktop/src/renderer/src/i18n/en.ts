@@ -735,6 +735,13 @@ export const en: Messages = {
 		magicContextMirror: "Embedding model mirror",
 		magicContextMirrorHint:
 			"Semantic search downloads an embedding model first. If huggingface.co is unreachable, enter a mirror such as https://hf-mirror.com; leave empty for the official source. Applies to new sessions.",
+		magicContextHistorian: "History compaction model (Historian)",
+		magicContextHistorianHint:
+			"Compacts older turns into structured summaries. When disabled, history is not compacted. Applies to new sessions.",
+		magicContextDreamer: "Memory curation model (Dreamer)",
+		magicContextDreamerHint:
+			"Curates and consolidates project memories. When disabled, memories are not curated automatically. Applies to new sessions.",
+		magicContextModelDisabled: "Disabled",
 		saved: "Saved",
 		magicContextHint:
 			"Keeps project memory across sessions and uses a model in the background to compress old turns and curate memories (uses extra tokens). Off by default; applies to new sessions. Data lives in ~/.local/share/cortexkit.",

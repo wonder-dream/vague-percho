@@ -4,6 +4,8 @@ import type {
 	LanStatus,
 	LoadedExtension,
 	LoadedSkill,
+	MagicContextAgent,
+	MagicContextModelSettings,
 	ModelPrefs,
 	ProviderInfo,
 	ProviderTestResult,
@@ -62,6 +64,8 @@ interface SettingsStore {
 	magicContextEnabled: boolean | null;
 	/** 嵌入模型下载镜像（HF_ENDPOINT）；"" = 官方源，null = 尚未读到 */
 	magicContextHfEndpoint: string | null;
+	/** Historian/Dreamer 模型；空串 = 不启用，null = 尚未读到 */
+	magicContextModels: MagicContextModelSettings | null;
 	codemodeEnabled: boolean | null;
 	codemodeOnly: boolean | null;
 	codemodeSaving: boolean;
@@ -107,6 +111,7 @@ interface SettingsStore {
 	setMagicContextEnabled: (enabled: boolean) => Promise<void>;
 	/** 保存镜像地址；校验失败抛错（调用方显示），成功回写规范化后的值 */
 	setMagicContextHfEndpoint: (endpoint: string) => Promise<void>;
+	setMagicContextAgentModel: (agent: MagicContextAgent, modelRef: string | null) => Promise<void>;
 	setCodemodeEnabled: (enabled: boolean) => Promise<void>;
 	setCodemodeOnly: (only: boolean) => Promise<void>;
 	refreshLanStatus: () => Promise<void>;
@@ -388,8 +393,14 @@ function createSettingsStore(environment: EnvironmentRef) {
 				.catch(() => {});
 			void getExecutionApi(environment)
 				.getMagicContextConfig()
-				.then((mc) => set({ magicContextEnabled: mc.enabled, magicContextHfEndpoint: mc.hfEndpoint }))
-				.catch(() => {});
+				.then((mc) =>
+					set({
+						magicContextEnabled: mc.enabled,
+						magicContextHfEndpoint: mc.hfEndpoint,
+						magicContextModels: mc.models,
+					}),
+				)
+				.catch((error) => set({ error: errorMessage(error) }));
 		};
 		const loadModelsData = async (mode: "local" | "mutation"): Promise<void> => {
 			void readPrefs().catch((error) =>
@@ -451,6 +462,7 @@ function createSettingsStore(environment: EnvironmentRef) {
 			channelWatchEnabled: null,
 			magicContextEnabled: null,
 			magicContextHfEndpoint: null,
+			magicContextModels: null,
 			codemodeEnabled: null,
 			codemodeOnly: null,
 			codemodeSaving: false,
@@ -522,6 +534,11 @@ function createSettingsStore(environment: EnvironmentRef) {
 			setMagicContextHfEndpoint: async (endpoint) => {
 				const saved = await getExecutionApi(environment).setMagicContextHfEndpoint({ endpoint });
 				set({ magicContextHfEndpoint: saved });
+			},
+
+			setMagicContextAgentModel: async (agent, modelRef) => {
+				const saved = await getExecutionApi(environment).setMagicContextAgentModel({ agent, modelRef });
+				set({ magicContextModels: saved });
 			},
 
 			setChannelWatchEnabled: async (enabled) => {

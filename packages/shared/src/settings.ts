@@ -36,6 +36,19 @@ export interface ModelPrefs {
 	subagentPreferBuiltin?: boolean;
 }
 
+/** Magic Context 后台角色使用的聊天模型；空串 = 不启用该角色。 */
+export type MagicContextAgent = "historian" | "dreamer";
+export interface MagicContextModelSettings {
+	historian: string;
+	dreamer: string;
+}
+
+export interface MagicContextConfigInfo {
+	enabled: boolean;
+	hfEndpoint: string;
+	models: MagicContextModelSettings;
+}
+
 /** 设置页可配置的子代理（仅内置与用户级定义，不含项目级）。 */
 export interface SubagentInfo {
 	name: string;

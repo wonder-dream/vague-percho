@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,12 +10,15 @@ import {
 	SessionManager,
 	SettingsManager,
 } from "@earendil-works/pi-coding-agent";
+import { parse } from "jsonc-parser";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { builtinExtensions } from "../src/project/builtin-extensions";
 import {
 	applyMagicContextEnv,
 	normalizeHfEndpoint,
 	readMagicContextHfEndpoint,
+	readMagicContextModelSettings,
+	writeMagicContextAgentModel,
 	writeMagicContextHfEndpoint,
 } from "../src/settings/magic-context";
 
@@ -124,5 +127,66 @@ describe("Magic Context 嵌入模型镜像", () => {
 		process.env.HF_ENDPOINT = "https://user.example";
 		applyMagicContextEnv(agentDir);
 		expect(process.env.HF_ENDPOINT).toBe("https://user.example");
+	});
+});
+
+describe("Magic Context 后台角色模型", () => {
+	it("保存模型时保留已有 JSONC 配置、注释和思考档位", async () => {
+		const { root } = sandbox();
+		const path = join(root, "config", "cortexkit", "magic-context.jsonc");
+		mkdirSync(join(root, "config", "cortexkit"), { recursive: true });
+		writeFileSync(
+			path,
+			`{
+  // 保留这条用户注释
+  "embedding": { "provider": "openai-compatible", "model": "Qwen/Qwen3-Embedding-8B" },
+  "historian": { "pi": { "model": { "model": "deepseek/old", "thinking_level": "high" } } }
+}\n`,
+		);
+		await writeMagicContextAgentModel("historian", "deepseek/deepseek-flash");
+		await writeMagicContextAgentModel("dreamer", "anthropic/claude-haiku-4-5");
+		const raw = readFileSync(path, "utf8");
+		const document = parse(raw) as {
+			embedding: { model: string };
+			historian: { pi: { model: { model: string; thinking_level: string } } };
+		};
+		expect(readMagicContextModelSettings()).toEqual({
+			historian: "deepseek/deepseek-flash",
+			dreamer: "anthropic/claude-haiku-4-5",
+		});
+		expect(raw).toContain("保留这条用户注释");
+		expect(document.embedding.model).toBe("Qwen/Qwen3-Embedding-8B");
+		expect(document.historian.pi.model).toEqual({
+			model: "deepseek/deepseek-flash",
+			thinking_level: "high",
+		});
+	});
+
+	it("并发保存不互相覆盖；禁用只移除对应角色", async () => {
+		sandbox();
+		await Promise.all([
+			writeMagicContextAgentModel("historian", "deepseek/deepseek-flash"),
+			writeMagicContextAgentModel("dreamer", "deepseek/deepseek-reasoner"),
+		]);
+		expect(readMagicContextModelSettings()).toEqual({
+			historian: "deepseek/deepseek-flash",
+			dreamer: "deepseek/deepseek-reasoner",
+		});
+		const saved = await writeMagicContextAgentModel("historian", null);
+		expect(saved).toEqual({ historian: "", dreamer: "deepseek/deepseek-reasoner" });
+	});
+
+	it("拒绝非法模型引用和损坏配置", async () => {
+		const { root } = sandbox();
+		await expect(writeMagicContextAgentModel("historian", "missing-provider")).rejects.toThrow(
+			"provider/modelId",
+		);
+		const path = join(root, "config", "cortexkit", "magic-context.jsonc");
+		mkdirSync(join(root, "config", "cortexkit"), { recursive: true });
+		writeFileSync(path, "{");
+		await expect(writeMagicContextAgentModel("historian", "deepseek/deepseek-flash")).rejects.toThrow(
+			"配置文件损坏",
+		);
+		expect(() => readMagicContextModelSettings()).toThrow("配置文件损坏");
 	});
 });

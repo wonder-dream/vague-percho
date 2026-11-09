@@ -1,6 +1,9 @@
+import { type AvailableModel, environmentKey } from "@percho/shared";
 import { useEffect, useState } from "react";
+import { useEnvironment } from "../../environment-context";
 import type { Language } from "../../i18n";
 import { useI18nStore, useT } from "../../i18n";
+import { useSessionsStore } from "../../stores/sessions";
 import { useSettingsStore } from "../../stores/settings";
 import { Select } from "../ui/Select";
 import { CacheWarmingSettings } from "./CacheWarmingSettings";
@@ -8,6 +11,7 @@ import { SettingsSwitchRow } from "./SettingsSwitchRow";
 import { TaskNotificationSettings } from "./TaskNotificationSettings";
 
 const LANGUAGES: Language[] = ["zh", "en"];
+const NO_AVAILABLE_MODELS: AvailableModel[] = [];
 
 /** 通用设置面板（上下文蒸发为内置常开策略，不提供开关） */
 export function GeneralPanel() {
@@ -25,6 +29,16 @@ export function GeneralPanel() {
 	const setMagicContextEnabled = useSettingsStore((s) => s.setMagicContextEnabled);
 	const magicContextHfEndpoint = useSettingsStore((s) => s.magicContextHfEndpoint);
 	const setMagicContextHfEndpoint = useSettingsStore((s) => s.setMagicContextHfEndpoint);
+	const magicContextModels = useSettingsStore((s) => s.magicContextModels);
+	const setMagicContextAgentModel = useSettingsStore((s) => s.setMagicContextAgentModel);
+	const environment = useEnvironment();
+	const availableModels = useSessionsStore(
+		(s) => s.modelsByEnvironment[environmentKey(environment)] ?? NO_AVAILABLE_MODELS,
+	);
+	const loadModels = useSessionsStore((s) => s.loadModels);
+	useEffect(() => {
+		if (magicContextEnabled === true) void loadModels(environment);
+	}, [environment, loadModels, magicContextEnabled]);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -53,8 +67,24 @@ export function GeneralPanel() {
 				disabled={magicContextEnabled === null}
 				onCheckedChange={(enabled) => void setMagicContextEnabled(enabled)}
 			/>
-			{magicContextEnabled === true && magicContextHfEndpoint !== null && (
-				<HfEndpointField value={magicContextHfEndpoint} onSave={setMagicContextHfEndpoint} />
+			{magicContextEnabled === true && magicContextHfEndpoint !== null && magicContextModels !== null && (
+				<div className="-mt-3 flex flex-col gap-4">
+					<HfEndpointField value={magicContextHfEndpoint} onSave={setMagicContextHfEndpoint} />
+					<MagicContextModelField
+						title={t("settings.magicContextHistorian")}
+						hint={t("settings.magicContextHistorianHint")}
+						value={magicContextModels.historian}
+						models={availableModels}
+						onSave={(modelRef) => setMagicContextAgentModel("historian", modelRef)}
+					/>
+					<MagicContextModelField
+						title={t("settings.magicContextDreamer")}
+						hint={t("settings.magicContextDreamerHint")}
+						value={magicContextModels.dreamer}
+						models={availableModels}
+						onSave={(modelRef) => setMagicContextAgentModel("dreamer", modelRef)}
+					/>
+				</div>
 			)}
 			<div>
 				<div className="flex items-center justify-between gap-4">
@@ -103,7 +133,7 @@ function HfEndpointField({ value, onSave }: { value: string; onSave: (endpoint: 
 		}
 	};
 	return (
-		<div className="-mt-3 flex flex-col gap-1 pl-0">
+		<div className="flex flex-col gap-1 pl-0">
 			<label className="text-ui-12 text-ink-2" htmlFor="mc-hf-endpoint">
 				{t("settings.magicContextMirror")}
 			</label>
@@ -126,6 +156,57 @@ function HfEndpointField({ value, onSave }: { value: string; onSave: (endpoint: 
 			<p className={`text-ui-11 ${error ? "text-err" : "text-ink-faint"}`}>
 				{error ?? t("settings.magicContextMirrorHint")}
 			</p>
+		</div>
+	);
+}
+
+function MagicContextModelField({
+	title,
+	hint,
+	value,
+	models,
+	onSave,
+}: {
+	title: string;
+	hint: string;
+	value: string;
+	models: AvailableModel[];
+	onSave: (modelRef: string | null) => Promise<void>;
+}) {
+	const t = useT();
+	const [saving, setSaving] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const hasSelectedModel = models.some((model) => `${model.provider}/${model.id}` === value);
+	const save = async (next: string) => {
+		if (saving || next === value) return;
+		setSaving(true);
+		setError(null);
+		try {
+			await onSave(next || null);
+		} catch (err) {
+			setError(err instanceof Error ? err.message.replace(/^.*Error: /, "") : String(err));
+		} finally {
+			setSaving(false);
+		}
+	};
+	return (
+		<div className="flex flex-col gap-1.5">
+			<div className="text-ui-12 text-ink-2">{title}</div>
+			<Select
+				ariaLabel={title}
+				value={value}
+				disabled={saving}
+				options={[
+					{ value: "", label: t("settings.magicContextModelDisabled") },
+					...(value && !hasSelectedModel ? [{ value, label: value }] : []),
+					...models.map((model) => ({
+						value: `${model.provider}/${model.id}`,
+						label: `${model.providerName} · ${model.label}`,
+					})),
+				]}
+				onChange={(next) => void save(next)}
+			/>
+			<p className={`text-ui-11 ${error ? "text-err" : "text-ink-faint"}`}>{error ?? hint}</p>
 		</div>
 	);
 }

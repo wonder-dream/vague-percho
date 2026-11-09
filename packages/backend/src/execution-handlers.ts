@@ -116,6 +116,7 @@ export function createExecutionHandlers(
 		getMagicContextConfig: () => backend.getMagicContextConfig(),
 		setMagicContextEnabled: ({ enabled }) => backend.setMagicContextEnabled(enabled),
 		setMagicContextHfEndpoint: ({ endpoint }) => backend.setMagicContextHfEndpoint(endpoint),
+		setMagicContextAgentModel: ({ agent, modelRef }) => backend.setMagicContextAgentModel(agent, modelRef),
 		setChannelWatchEnabled: ({ enabled }) => backend.setChannelWatchEnabled(enabled),
 		respondTrust: ({ requestId, answer }) => backend.respondTrust(requestId, answer),
 		searchCatalog: ({ query, type, page }) => backend.packages.searchPackages(query, type, page),

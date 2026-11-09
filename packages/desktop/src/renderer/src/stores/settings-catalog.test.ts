@@ -18,6 +18,7 @@ const api = vi.hoisted(() => ({
 	getPermissionConfig: vi.fn(),
 	getChannelWatchConfig: vi.fn(),
 	getCodemodeConfig: vi.fn(() => Promise.resolve({ enabled: true })),
+	getMagicContextConfig: vi.fn(),
 	lanGetStatus: vi.fn(),
 	getModelPrefs: vi.fn(),
 	loadModels: vi.fn(),
@@ -78,6 +79,11 @@ beforeEach(async () => {
 	vi.resetAllMocks();
 	api.getPermissionConfig.mockResolvedValue({ enabled: true });
 	api.getChannelWatchConfig.mockResolvedValue({ enabled: true });
+	api.getMagicContextConfig.mockResolvedValue({
+		enabled: false,
+		hfEndpoint: "",
+		models: { historian: "", dreamer: "" },
+	});
 	api.lanGetStatus.mockResolvedValue(null);
 	api.getModelPrefs.mockResolvedValue({ hiddenModels: {}, subagentModels: {} });
 	api.getLoadedResources.mockResolvedValue({
@@ -130,6 +136,7 @@ describe("V03 settings consumer matrix (ticket 11 target)", () => {
 		for (const mock of [
 			api.getPermissionConfig,
 			api.getChannelWatchConfig,
+			api.getMagicContextConfig,
 			api.lanGetStatus,
 			api.getModelPrefs,
 			api.listProviders,
@@ -182,6 +189,7 @@ describe("D10 consumer and mutation responsibilities", () => {
 		if (full) await vi.waitFor(() => expect(api.getLoadedResources).toHaveBeenCalledOnce());
 		for (const [mock, enabled] of [
 			[api.getChannelWatchConfig, full || category === "general"],
+			[api.getMagicContextConfig, full || category === "general"],
 			[api.listProviders, full || category === "models"],
 			[api.getModelPrefs, full || category === "models"],
 			[api.listSubagents, full || category === "models"],

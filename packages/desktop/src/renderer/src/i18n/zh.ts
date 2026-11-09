@@ -684,6 +684,11 @@ export const zh = {
 		magicContextMirror: "嵌入模型下载镜像",
 		magicContextMirrorHint:
 			"语义搜索要先下载嵌入模型。直连 huggingface.co 不通时可填镜像，如 https://hf-mirror.com；留空用官方源。新建会话后生效。",
+		magicContextHistorian: "历史压缩模型（Historian）",
+		magicContextHistorianHint: "把旧对话压缩为结构化摘要；不启用则不会自动压缩。新建会话后生效。",
+		magicContextDreamer: "记忆整理模型（Dreamer）",
+		magicContextDreamerHint: "整理、合并项目记忆；不启用则不会自动整理。新建会话后生效。",
+		magicContextModelDisabled: "不启用",
 		saved: "已保存",
 		magicContextHint:
 			"在会话之间保留项目记忆，并在后台用模型压缩旧对话、整理记忆（会额外消耗 token）。默认关闭，新建会话后生效；数据存在 ~/.local/share/cortexkit。",
