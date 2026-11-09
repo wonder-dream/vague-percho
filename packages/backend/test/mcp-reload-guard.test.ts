@@ -50,6 +50,7 @@ function stubSession(options: { sessionId: string; isStreaming?: boolean; isComp
 		},
 		reload,
 		getAllTools: () => [],
+		resourceLoader: { getExtensions: () => ({ extensions: [], errors: [] }) },
 	} as unknown as AgentSession;
 	return { session, reload };
 }
@@ -58,7 +59,12 @@ function makeBackend(entries: { session: AgentSession; cwd?: string }[]) {
 	const backend = new PiBackend({ projectTrust: false, permissionGates: false });
 	const registry = (backend as unknown as { registry: SessionRegistry }).registry;
 	for (const entry of entries) {
-		registry.add({ session: entry.session, unsubscribe: () => {}, cwd: entry.cwd ?? project });
+		registry.add({
+			session: entry.session,
+			unsubscribe: () => {},
+			cwd: entry.cwd ?? project,
+			modeRef: { current: "default" },
+		});
 	}
 	return backend;
 }

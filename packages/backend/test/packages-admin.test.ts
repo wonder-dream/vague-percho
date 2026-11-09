@@ -99,6 +99,7 @@ function stubSession(state: { sessionId: string; isStreaming?: boolean; isCompac
 	const session = {
 		sessionId: state.sessionId,
 		reload,
+		resourceLoader: { getExtensions: () => ({ extensions: [], errors: [] }) },
 		get isStreaming() {
 			return state.isStreaming ?? false;
 		},
@@ -112,7 +113,12 @@ function backendWithSessions(sessions: AgentSession[]) {
 	const backend = new PiBackend();
 	const registry = (backend as unknown as { registry: SessionRegistry }).registry;
 	for (const session of sessions)
-		registry.add({ session, unsubscribe: () => {}, cwd: join(tmpdir(), "package-cwd") });
+		registry.add({
+			session,
+			unsubscribe: () => {},
+			cwd: join(tmpdir(), "package-cwd"),
+			modeRef: { current: "default" },
+		});
 	return backend;
 }
 
