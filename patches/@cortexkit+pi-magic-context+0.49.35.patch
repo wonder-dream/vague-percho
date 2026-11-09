@@ -41,7 +41,7 @@ index 2ce7359..5bb6255 100644
 diff --git a/node_modules/@cortexkit/pi-magic-context/dist/transformers.node-3zqr6k1w.js b/node_modules/@cortexkit/pi-magic-context/dist/transformers.node-3zqr6k1w.js
 --- a/node_modules/@cortexkit/pi-magic-context/dist/transformers.node-3zqr6k1w.js
 +++ b/node_modules/@cortexkit/pi-magic-context/dist/transformers.node-3zqr6k1w.js
-@@ -7812,5 +7812,6 @@
+@@ -7812,6 +7812,7 @@
  }();
  var requireFromHere = createRequire(import.meta.url ?? __filename);
  process.env.ORT_DISABLE_TELEMETRY = "1";

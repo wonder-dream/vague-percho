@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, relative } from "node:path";
@@ -13,6 +14,14 @@ const sharedRequire = createRequire(join(root, "packages/shared/package.json"));
 const semverPath = sharedRequire.resolve("semver/package.json");
 const semver = JSON.parse(await readFile(semverPath, "utf8"));
 const jsoncPath = sharedRequire.resolve("jsonc-parser/package.json");
+
+test("all committed patches parse with patch-package", () => {
+	const { parsePatchFile } = sharedRequire("patch-package/dist/patch/parse");
+	for (const name of readdirSync(join(root, "patches"))) {
+		if (name.endsWith(".patch"))
+			assert.ok(parsePatchFile(readFileSync(join(root, "patches", name), "utf8")).length > 0, name);
+	}
+});
 
 test("runtime build lock pins shared semver as an isolated build dependency", () => {
 	const selected = runtimeBuildLock(lock, "0.0.0-test");
