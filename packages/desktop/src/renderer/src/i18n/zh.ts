@@ -256,6 +256,7 @@ export const zh = {
 	composer: {
 		restoreFailedDraft: "恢复上次未发送的内容（当前输入仍会保留）",
 		placeholder: "随便问点什么，/ 命令，@ 上下文",
+		commentPlaceholder: "针对选中的内容写下批注…",
 		placeholderQueued: "排队消息，当前任务完成后自动发送",
 		placeholderCompacting: "正在压缩上下文…",
 		placeholderReadOnly: "子代理会话为只读检视，不可继续对话",
@@ -280,6 +281,7 @@ export const zh = {
 		queueFull: "已有一条排队消息，取回后再发",
 		targetChanged: "项目已切换，请回到原项目重试发送",
 		removeQuote: "移除引用",
+		commentSelection: "批注选段",
 		permissionMode: "权限模式",
 		permissionDefault: "默认",
 		permissionFullAccess: "完全访问",
@@ -291,6 +293,7 @@ export const zh = {
 	},
 	selection: {
 		addToChat: "添加到对话",
+		addComment: "添加批注",
 		continueNew: "在新会话继续",
 		busyHint: "当前任务完成后再分叉",
 	},

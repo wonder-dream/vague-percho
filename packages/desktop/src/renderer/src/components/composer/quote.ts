@@ -15,6 +15,12 @@ export function buildQuoteBlock(quotes: string[]): string {
 		.join("\n\n");
 }
 
+/** 把批注目标和用户说明拼成一条可读的 prompt；空说明时只保留引用，方便继续编辑。 */
+export function buildCommentBlock(quote: string | null | undefined, comment: string): string {
+	if (!quote) return "";
+	return [buildQuoteBlock([quote]), comment.trim()].filter(Boolean).join("\n\n");
+}
+
 /** 引用胶囊摘要：折叠全部空白为单空格并截断（Tooltip 展示同款文本） */
 export function quoteSummary(quote: string, max = 160): string {
 	const flat = quote.replace(/\s+/g, " ").trim();

@@ -7,8 +7,8 @@ import { useTranscriptStore } from "../../stores/transcript";
 
 /** 菜单与选区的间距 */
 const GAP = 8;
-/** 水平 clamp 的半宽估计（菜单实际宽约 230px，超出按 clamp 边距轻微偏移可接受） */
-const HALF_WIDTH = 120;
+/** 水平 clamp 的半宽估计（菜单包含批注动作，按约 350px 宽度预留） */
+const HALF_WIDTH = 180;
 
 interface SelectionState {
 	text: string;
@@ -16,7 +16,8 @@ interface SelectionState {
 }
 
 /**
- * 对话区选中文字浮出菜单：「添加到对话」（引用胶囊进输入框）/「在新会话继续」（fork + 胶囊）。
+ * 对话区选中文字浮出菜单：「添加到对话」（引用胶囊）/「添加批注」（引用并准备说明）/
+ * 「在新会话继续」（fork + 胶囊）。
  * selectionchange 只缓存选区（拖选过程不闪现），mouseup 才显示；菜单 onMouseDown
  * preventDefault 防点击瞬间选区塌陷，动作消费缓存文本而非重读 selection。
  * 只读会话（subagent 检视）不弹；「在新会话继续」在 agent 运行/压缩中禁用（fork 被后端拒绝）。
@@ -141,6 +142,12 @@ export function SelectionToolbar({ containerRef }: { containerRef: React.RefObje
 		consumeAndFocus(activeSessionId);
 	};
 
+	const addComment = () => {
+		if (!pending || !activeSessionId) return;
+		useDraftStore.getState().updateDraft(activeSessionId, (d) => ({ ...d, commentQuote: pending.text }));
+		consumeAndFocus(activeSessionId);
+	};
+
 	const continueInNewChat = async () => {
 		if (!pending || busy || forking || !activeSessionId) return;
 		const messages = useTranscriptStore.getState().bySession[activeSessionId]?.messages ?? [];
@@ -184,6 +191,10 @@ export function SelectionToolbar({ containerRef }: { containerRef: React.RefObje
 		>
 			<button type="button" role="menuitem" className="selection-menu-btn" onClick={addToChat}>
 				{t("selection.addToChat")}
+			</button>
+			<span aria-hidden="true" className="mx-0.5 h-4 w-px shrink-0 bg-border" />
+			<button type="button" role="menuitem" className="selection-menu-btn" onClick={addComment}>
+				{t("selection.addComment")}
 			</button>
 			<span aria-hidden="true" className="mx-0.5 h-4 w-px shrink-0 bg-border" />
 			<button

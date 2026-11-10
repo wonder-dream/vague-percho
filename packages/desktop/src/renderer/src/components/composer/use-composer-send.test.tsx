@@ -164,6 +164,91 @@ describe("运行展示不放宽原发送资格", () => {
 	});
 });
 
+describe("选区批注", () => {
+	it("把批注选段和用户说明一起发送，并在发送后消费批注目标", async () => {
+		useTranscriptStore.getState().loadHistory("fixture", []);
+		useDraftStore.getState().updateDraft("fixture", () => ({
+			...EMPTY_DRAFT,
+			document: composerDocumentFromText("请说明这段内容的影响"),
+			commentQuote: "const answer = await run();",
+		}));
+
+		await composer().handleSend();
+
+		expect(prompt).toHaveBeenCalledExactlyOnceWith({
+			sessionId: "fixture",
+			text: "> const answer = await run();\n\n请说明这段内容的影响",
+			document: undefined,
+			images: undefined,
+		});
+		expect(useDraftStore.getState().bySession.fixture).toBeUndefined();
+	});
+
+	it("只有批注选段没有说明时也能发送选段", async () => {
+		useTranscriptStore.getState().loadHistory("fixture", []);
+		useDraftStore.getState().updateDraft("fixture", () => ({
+			...EMPTY_DRAFT,
+			commentQuote: "被选中的句子",
+		}));
+
+		await composer().handleSend();
+
+		expect(prompt).toHaveBeenCalledExactlyOnceWith({
+			sessionId: "fixture",
+			text: "> 被选中的句子",
+			document: undefined,
+			images: undefined,
+		});
+	});
+
+	it("批注和文件引用共存时保留结构化文件输入", async () => {
+		useTranscriptStore.getState().loadHistory("fixture", []);
+		useDraftStore.getState().updateDraft("fixture", () => ({
+			...EMPTY_DRAFT,
+			document: {
+				version: 1,
+				parts: [
+					{ type: "text", text: "请检查 " },
+					{ type: "file", path: "/tmp/notes.md", label: "notes.md" },
+				],
+			},
+			commentQuote: "被选中的代码",
+		}));
+
+		await composer().handleSend();
+
+		expect(prompt).toHaveBeenCalledExactlyOnceWith({
+			sessionId: "fixture",
+			text: "> 被选中的代码\n\n请检查 @notes.md",
+			document: {
+				version: 1,
+				parts: [
+					{ type: "text", text: "> 被选中的代码\n\n请检查 " },
+					{ type: "file", path: "/tmp/notes.md", label: "notes.md" },
+				],
+			},
+			images: undefined,
+		});
+	});
+
+	it("发送失败时恢复批注选段和正文", async () => {
+		useTranscriptStore.getState().loadHistory("fixture", []);
+		useDraftStore.getState().updateDraft("fixture", () => ({
+			...EMPTY_DRAFT,
+			document: composerDocumentFromText("说明"),
+			commentQuote: "需要解释的选段",
+		}));
+		prompt.mockRejectedValueOnce(new Error("synthetic failure"));
+
+		await composer().handleSend();
+
+		expect(useDraftStore.getState().bySession.fixture).toMatchObject({
+			commentQuote: "需要解释的选段",
+			document: composerDocumentFromText("说明"),
+		});
+	});
+});
+
 describe("compaction recovery send", () => {
 	it.each(["paused", "stopped"])(
 		"accepts a human correction with a retained queue after %s",

@@ -32,13 +32,15 @@ export function newSessionDraftKey(
 /** 请求聚焦输入框的窗口事件名（撤回回填草稿后由 store 派发，Composer 监听聚焦编辑器） */
 export const COMPOSER_FOCUS_EVENT = "pi:composer-focus";
 
-/** 一份会话草稿：文本 + 图片附件 + slash 命令胶囊 + @ 文件引用胶囊 + 选中引用胶囊 */
+/** 一份会话草稿：文本 + 图片附件 + slash 命令胶囊 + @ 文件引用胶囊 + 选中引用/批注目标 */
 export interface DraftEntry {
 	document: ComposerDocument;
 	images: ImageInput[];
 	slashCommand: string | null;
 	/** 选中引用（对话区选中内容弹菜单添加）；发送时逐条转 blockquote 段落置于最前 */
 	quotes: string[];
+	/** 批注目标（选中内容弹菜单添加）；发送时 blockquote 后接正文说明 */
+	commentQuote: string | null;
 }
 
 /** 模块级共享空态（selector 缺省返回，引用稳定防重渲染循环） */
@@ -47,6 +49,7 @@ export const EMPTY_DRAFT: DraftEntry = {
 	images: [],
 	slashCommand: null,
 	quotes: [],
+	commentQuote: null,
 };
 
 /**
@@ -67,7 +70,8 @@ function isEmpty(entry: DraftEntry): boolean {
 		entry.document.parts.length === 0 &&
 		entry.images.length === 0 &&
 		!entry.slashCommand &&
-		entry.quotes.length === 0
+		entry.quotes.length === 0 &&
+		!entry.commentQuote
 	);
 }
 

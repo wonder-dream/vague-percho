@@ -270,6 +270,7 @@ export const en: Messages = {
 	composer: {
 		restoreFailedDraft: "Restore the last unsent message (keep the current draft)",
 		placeholder: "Ask anything, / for commands, @ for context",
+		commentPlaceholder: "Write a comment about the selected text…",
 		placeholderQueued: "Queue a message — sent when the current task finishes",
 		placeholderCompacting: "Compacting context…",
 		placeholderReadOnly: "Subagent transcript is read-only — continue in the parent session",
@@ -295,6 +296,7 @@ export const en: Messages = {
 		queueFull: "A message is already queued — take it back first",
 		targetChanged: "The project has changed. Return to the original project to retry sending.",
 		removeQuote: "Remove quote",
+		commentSelection: "Comment target",
 		permissionMode: "Permission mode",
 		permissionDefault: "Default",
 		permissionFullAccess: "Full access",
@@ -307,6 +309,7 @@ export const en: Messages = {
 	},
 	selection: {
 		addToChat: "Add to chat",
+		addComment: "Add comment",
 		continueNew: "Continue in new chat",
 		busyHint: "Fork after the current task finishes",
 	},

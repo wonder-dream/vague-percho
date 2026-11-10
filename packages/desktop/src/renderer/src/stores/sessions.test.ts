@@ -1473,6 +1473,7 @@ describe("单例新会话 draft（newSessionDraft）", () => {
 			images: [{ data: "AAAA", mimeType: "image/png" }],
 			slashCommand: "compact",
 			quotes: ["引用段落"],
+			commentQuote: null,
 		}));
 
 		useSessionsStore.getState().activateNewSessionDraft();
@@ -1481,6 +1482,7 @@ describe("单例新会话 draft（newSessionDraft）", () => {
 			images: [{ data: "AAAA", mimeType: "image/png" }],
 			slashCommand: "compact",
 			quotes: ["引用段落"],
+			commentQuote: null,
 		});
 
 		useSessionsStore.getState().activateNewSessionDraft();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildQuoteBlock, quoteSummary } from "./quote";
+import { buildCommentBlock, buildQuoteBlock, quoteSummary } from "./quote";
 
 describe("buildQuoteBlock", () => {
 	it("空数组返回空串", () => {
@@ -31,5 +31,19 @@ describe("quoteSummary", () => {
 	it("超长截断加省略号", () => {
 		const out = quoteSummary("x".repeat(200));
 		expect(out).toBe(`${"x".repeat(160)}…`);
+	});
+});
+
+describe("buildCommentBlock", () => {
+	it("把选区放在说明前，形成一条批注输入", () => {
+		expect(buildCommentBlock("被选中的句子", "请解释这句话")).toBe("> 被选中的句子\n\n请解释这句话");
+	});
+
+	it("说明为空时保留选区，便于发送或继续编辑", () => {
+		expect(buildCommentBlock("被选中的句子", "  ")).toBe("> 被选中的句子");
+	});
+
+	it("没有批注目标时返回空串", () => {
+		expect(buildCommentBlock(null, "说明")).toBe("");
 	});
 });
