@@ -23,7 +23,7 @@ import { useSessionsStore } from "../../stores/sessions";
 import { useSettingsStore } from "../../stores/settings";
 import { pushToast } from "../../stores/toasts";
 import { useTranscriptStore } from "../../stores/transcript";
-import { buildCommentBlock, buildQuoteBlock } from "./quote";
+import { buildCommentBlocks, buildQuoteBlock } from "./quote";
 import { buildSendUiError } from "./send-error";
 import { createSendGuard } from "./send-guard";
 
@@ -204,21 +204,20 @@ export function useComposerSend(options: UseComposerSendOptions) {
 		const compacting = current?.compacting ?? false;
 		const agentActive = current?.agentActive ?? false;
 		const currentDraft = useDraftStore.getState().bySession[options.draftKey] ?? EMPTY_DRAFT;
-		const { images, quotes, slashCommand, commentQuote } = currentDraft;
+		const { images, quotes, slashCommand, comments } = currentDraft;
 		const text = draftText(currentDraft);
 		// 选区引用置于正文前；文件和 skill 保留在正文原位置。
 		const quoteBlock = buildQuoteBlock(quotes);
 		const body = text.trim();
 		const commandBody = slashCommand ? `/${slashCommand}${body ? ` ${body}` : ""}` : body;
-		const commentBlock = buildCommentBlock(commentQuote, commandBody);
-		let content = [quoteBlock, commentBlock || commandBody]
-			.filter(Boolean)
-			.join("\n\n");
+		const commentBlock = buildCommentBlocks(comments);
+		let content = [commentBlock, quoteBlock, commandBody].filter(Boolean).join("\n\n");
 		const hasReferences = currentDraft.document.parts.some((p) => p.type !== "text");
-		const prefix = [quoteBlock, commentQuote ? buildQuoteBlock([commentQuote]) : ""]
-			.filter(Boolean)
-			.map((block) => `${block}\n\n`)
-			.join("") + (slashCommand ? `/${slashCommand} ` : "");
+		const prefix =
+			[commentBlock, quoteBlock]
+				.filter(Boolean)
+				.map((block) => `${block}\n\n`)
+				.join("") + (slashCommand ? `/${slashCommand} ` : "");
 		const document = hasReferences
 			? normalizeComposerDocument({
 					version: 1,

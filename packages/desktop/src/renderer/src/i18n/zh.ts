@@ -282,6 +282,9 @@ export const zh = {
 		targetChanged: "项目已切换，请回到原项目重试发送",
 		removeQuote: "移除引用",
 		commentSelection: "批注选段",
+		removeComment: "移除批注",
+		commentInput: "批注内容",
+		commentInputPlaceholder: "补充你想说的话…",
 		permissionMode: "权限模式",
 		permissionDefault: "默认",
 		permissionFullAccess: "完全访问",
@@ -293,9 +296,12 @@ export const zh = {
 	},
 	selection: {
 		addToChat: "添加到对话",
-		addComment: "添加批注",
 		continueNew: "在新会话继续",
 		busyHint: "当前任务完成后再分叉",
+		annotationTitle: "添加批注",
+		annotationPlaceholder: "针对这段内容写下批注…",
+		annotationCancel: "取消",
+		annotationConfirm: "确定",
 	},
 	slash: {
 		noMatch: "没有匹配的命令",

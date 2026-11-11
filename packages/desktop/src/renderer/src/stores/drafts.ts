@@ -32,15 +32,30 @@ export function newSessionDraftKey(
 /** 请求聚焦输入框的窗口事件名（撤回回填草稿后由 store 派发，Composer 监听聚焦编辑器） */
 export const COMPOSER_FOCUS_EVENT = "pi:composer-focus";
 
-/** 一份会话草稿：文本 + 图片附件 + slash 命令胶囊 + @ 文件引用胶囊 + 选中引用/批注目标 */
+/** 一份可复用的选区批注包：选中的原文和针对它的说明始终成对保存。 */
+export interface DraftComment {
+	id: string;
+	quote: string;
+	comment: string;
+}
+
+let draftCommentSequence = 0;
+
+/** 创建批注包 ID；ID 只用于当前草稿内的稳定 React key，不参与发送协议。 */
+export function createDraftComment(quote: string, comment: string): DraftComment {
+	draftCommentSequence += 1;
+	return { id: `comment-${draftCommentSequence}`, quote, comment };
+}
+
+/** 一份会话草稿：文本 + 图片附件 + slash 命令胶囊 + @ 文件引用胶囊 + 选区批注包 */
 export interface DraftEntry {
 	document: ComposerDocument;
 	images: ImageInput[];
 	slashCommand: string | null;
 	/** 选中引用（对话区选中内容弹菜单添加）；发送时逐条转 blockquote 段落置于最前 */
 	quotes: string[];
-	/** 批注目标（选中内容弹菜单添加）；发送时 blockquote 后接正文说明 */
-	commentQuote: string | null;
+	/** 选区批注包（每个包包含独立选段和说明）；发送时按顺序置于正文前 */
+	comments: DraftComment[];
 }
 
 /** 模块级共享空态（selector 缺省返回，引用稳定防重渲染循环） */
@@ -49,7 +64,7 @@ export const EMPTY_DRAFT: DraftEntry = {
 	images: [],
 	slashCommand: null,
 	quotes: [],
-	commentQuote: null,
+	comments: [],
 };
 
 /**
@@ -71,7 +86,7 @@ function isEmpty(entry: DraftEntry): boolean {
 		entry.images.length === 0 &&
 		!entry.slashCommand &&
 		entry.quotes.length === 0 &&
-		!entry.commentQuote
+		entry.comments.length === 0
 	);
 }
 

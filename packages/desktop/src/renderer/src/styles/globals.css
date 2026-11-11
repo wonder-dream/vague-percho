@@ -459,6 +459,9 @@
 	background-color: var(--color-hover);
 	color: var(--color-ink);
 }
+.selection-annotation-input {
+	field-sizing: content;
+}
 @media (prefers-reduced-motion: reduce) {
 	.selection-pop {
 		animation: none;

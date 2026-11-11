@@ -297,6 +297,9 @@ export const en: Messages = {
 		targetChanged: "The project has changed. Return to the original project to retry sending.",
 		removeQuote: "Remove quote",
 		commentSelection: "Comment target",
+		removeComment: "Remove comment",
+		commentInput: "Comment",
+		commentInputPlaceholder: "Add what you want to say…",
 		permissionMode: "Permission mode",
 		permissionDefault: "Default",
 		permissionFullAccess: "Full access",
@@ -309,9 +312,12 @@ export const en: Messages = {
 	},
 	selection: {
 		addToChat: "Add to chat",
-		addComment: "Add comment",
 		continueNew: "Continue in new chat",
 		busyHint: "Fork after the current task finishes",
+		annotationTitle: "Add comment",
+		annotationPlaceholder: "Write a comment about this selection…",
+		annotationCancel: "Cancel",
+		annotationConfirm: "Add",
 	},
 	slash: {
 		noMatch: "No matching commands",

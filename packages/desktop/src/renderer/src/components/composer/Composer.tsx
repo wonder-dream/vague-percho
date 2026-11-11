@@ -31,6 +31,7 @@ import { selectTranscript, useTranscriptStore } from "../../stores/transcript";
 import { ImagePreviewOverlay } from "../chat/ImagePreview";
 import { ArrowUpIcon, PencilIcon, PlusIcon, StopIcon } from "../icons";
 import { AtMenu } from "./AtMenu";
+import { CommentPackageCard } from "./CommentPackage";
 import { ComposerEditor, type ComposerEditorHandle } from "./ComposerEditor";
 import { ContextRing } from "./ContextRing";
 import "./composer-editor.css";
@@ -103,8 +104,7 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 
 	const draft = useDraftStore((s) => s.bySession[draftKey] ?? EMPTY_DRAFT);
 	const failedDraft = useDraftStore((s) => s.failedBySession[draftKey]);
-	const { document, images, slashCommand, quotes } = draft;
-	const commentQuote = draft.commentQuote ?? null;
+	const { document, images, slashCommand, quotes, comments } = draft;
 	const text = draftText(draft);
 	const updateDraft = useDraftStore((s) => s.updateDraft);
 	const setText = (updater: string | ((prev: string) => string)) => {
@@ -143,8 +143,14 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 			quotes: typeof updater === "function" ? updater(d.quotes) : updater,
 		}));
 	};
-	const setCommentQuote = (quote: string | null) => {
-		updateDraft(draftKey, (d) => ({ ...d, commentQuote: quote }));
+	const setComment = (id: string, comment: string) => {
+		updateDraft(draftKey, (d) => ({
+			...d,
+			comments: d.comments.map((item) => (item.id === id ? { ...item, comment } : item)),
+		}));
+	};
+	const removeComment = (id: string) => {
+		updateDraft(draftKey, (d) => ({ ...d, comments: d.comments.filter((item) => item.id !== id) }));
 	};
 	const [previewImage, setPreviewImage] = useState<ImageInput | null>(null);
 	const editorRef = useRef<ComposerEditorHandle>(null);
@@ -160,7 +166,7 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 		images.length > 0 ||
 		Boolean(slashCommand) ||
 		quotes.length > 0 ||
-		Boolean(commentQuote);
+		comments.length > 0;
 
 	const send = useComposerSend({
 		draftKey,
@@ -208,9 +214,7 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 			? t("composer.placeholderCompacting")
 			: isStreaming
 				? t("composer.placeholderQueued")
-				: commentQuote
-					? t("composer.commentPlaceholder")
-					: t("composer.placeholder");
+				: t("composer.placeholder");
 
 	const slash = useSlashMenu({
 		activeSessionId,
@@ -290,7 +294,7 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 			return;
 		}
 		if (text === "" && (e.key === "Backspace" || e.key === "Delete")) {
-			// 胶囊撤销：视觉由近及远（@ 文件 → slash 命令 → 普通引用 → 批注目标）
+			// 胶囊撤销：视觉由近及远（@ 文件 → slash 命令 → 普通引用 → 批注包）
 
 			if (slashCommand) {
 				slash.restoreSlashPill(e);
@@ -301,9 +305,9 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 				setQuotes((prev) => prev.slice(0, -1));
 				return;
 			}
-			if (commentQuote) {
+			if (comments.length > 0) {
 				e.preventDefault();
-				setCommentQuote(null);
+				removeComment(comments[comments.length - 1]?.id ?? "");
 				return;
 			}
 		}
@@ -473,28 +477,33 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 					className="rounded-[20px] border-[0.5px] border-border bg-surface shadow-soft"
 				>
 					{/* 引用胶囊区：独占顶部一行贴边（专为选中引用留的位置，不占正文宽度） */}
-					{(quotes.length > 0 || commentQuote) && (
-						<div className="flex flex-wrap items-center gap-1.5 px-3 pt-2">
-							{commentQuote && (
-								<QuoteChip
-									quote={commentQuote}
-									annotation
-									onRemove={() => setCommentQuote(null)}
-								/>
-							)}
-							{quotes.map((quote) => (
-								<QuoteChip
-									key={quote}
-									quote={quote}
-									onRemove={() => setQuotes((prev) => prev.filter((q) => q !== quote))}
+					{(quotes.length > 0 || comments.length > 0) && (
+						<div className="flex flex-col gap-1.5 px-3 pt-2">
+							{comments.map((comment) => (
+								<CommentPackageCard
+									key={comment.id}
+									comment={comment}
+									onCommentChange={(value) => setComment(comment.id, value)}
+									onRemove={() => removeComment(comment.id)}
 								/>
 							))}
+							{quotes.length > 0 && (
+								<div className="flex flex-wrap items-center gap-1.5">
+									{quotes.map((quote) => (
+										<QuoteChip
+											key={quote}
+											quote={quote}
+											onRemove={() => setQuotes((prev) => prev.filter((q) => q !== quote))}
+										/>
+									))}
+								</div>
+							)}
 						</div>
 					)}
 					{/* 正文行：普通 slash 命令保留参数模式，skill 和文件由编辑器在正文原位置呈现；
 					    宿主身份由草稿决定，内容更新不重建编辑器；
 					    无引用时文本贴顶（可编辑区向上扩展），引用行临时加一行、不浪费空间 */}
-					<div className={`px-4 pb-5.5 ${quotes.length > 0 || commentQuote ? "pt-1.5" : "pt-2"}`}>
+					<div className={`px-4 pb-5.5 ${quotes.length > 0 || comments.length > 0 ? "pt-1.5" : "pt-2"}`}>
 						<div
 							className={slashCommand ? "relative flex flex-wrap items-start gap-x-1.5 gap-y-1" : "relative"}
 						>

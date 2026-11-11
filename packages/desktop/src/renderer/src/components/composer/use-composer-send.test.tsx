@@ -165,30 +165,33 @@ describe("运行展示不放宽原发送资格", () => {
 });
 
 describe("选区批注", () => {
-	it("把批注选段和用户说明一起发送，并在发送后消费批注目标", async () => {
+	it("把多个批注包和正文按输入顺序一起发送，并在发送后消费批注包", async () => {
 		useTranscriptStore.getState().loadHistory("fixture", []);
 		useDraftStore.getState().updateDraft("fixture", () => ({
 			...EMPTY_DRAFT,
-			document: composerDocumentFromText("请说明这段内容的影响"),
-			commentQuote: "const answer = await run();",
+			document: composerDocumentFromText("请说明这两段内容的影响"),
+			comments: [
+				{ id: "comment-1", quote: "const answer = await run();", comment: "先解释执行路径" },
+				{ id: "comment-2", quote: "return result;", comment: "再说明返回值" },
+			],
 		}));
 
 		await composer().handleSend();
 
 		expect(prompt).toHaveBeenCalledExactlyOnceWith({
 			sessionId: "fixture",
-			text: "> const answer = await run();\n\n请说明这段内容的影响",
+			text: "> const answer = await run();\n\n先解释执行路径\n\n> return result;\n\n再说明返回值\n\n请说明这两段内容的影响",
 			document: undefined,
 			images: undefined,
 		});
 		expect(useDraftStore.getState().bySession.fixture).toBeUndefined();
 	});
 
-	it("只有批注选段没有说明时也能发送选段", async () => {
+	it("批注包没有说明时仍保留选段，不丢掉用户刚选中的内容", async () => {
 		useTranscriptStore.getState().loadHistory("fixture", []);
 		useDraftStore.getState().updateDraft("fixture", () => ({
 			...EMPTY_DRAFT,
-			commentQuote: "被选中的句子",
+			comments: [{ id: "comment-1", quote: "被选中的句子", comment: "" }],
 		}));
 
 		await composer().handleSend();
@@ -212,18 +215,18 @@ describe("选区批注", () => {
 					{ type: "file", path: "/tmp/notes.md", label: "notes.md" },
 				],
 			},
-			commentQuote: "被选中的代码",
+			comments: [{ id: "comment-1", quote: "被选中的代码", comment: "检查文件引用" }],
 		}));
 
 		await composer().handleSend();
 
 		expect(prompt).toHaveBeenCalledExactlyOnceWith({
 			sessionId: "fixture",
-			text: "> 被选中的代码\n\n请检查 @notes.md",
+			text: "> 被选中的代码\n\n检查文件引用\n\n请检查 @notes.md",
 			document: {
 				version: 1,
 				parts: [
-					{ type: "text", text: "> 被选中的代码\n\n请检查 " },
+					{ type: "text", text: "> 被选中的代码\n\n检查文件引用\n\n请检查 " },
 					{ type: "file", path: "/tmp/notes.md", label: "notes.md" },
 				],
 			},
@@ -236,14 +239,14 @@ describe("选区批注", () => {
 		useDraftStore.getState().updateDraft("fixture", () => ({
 			...EMPTY_DRAFT,
 			document: composerDocumentFromText("说明"),
-			commentQuote: "需要解释的选段",
+			comments: [{ id: "comment-1", quote: "需要解释的选段", comment: "补充说明" }],
 		}));
 		prompt.mockRejectedValueOnce(new Error("synthetic failure"));
 
 		await composer().handleSend();
 
 		expect(useDraftStore.getState().bySession.fixture).toMatchObject({
-			commentQuote: "需要解释的选段",
+			comments: [{ id: "comment-1", quote: "需要解释的选段", comment: "补充说明" }],
 			document: composerDocumentFromText("说明"),
 		});
 	});
