@@ -63,17 +63,32 @@ jobs:
       - name: Verify Windows installer hooks
         if: runner.os == 'Windows'
         run: node scripts/check-windows-update-diagnostics.mjs
+      - name: Build desktop package and verify Windows filesystem contracts in parallel
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          # These tests only use their own temporary directories; packaging never writes to them.
+          # Native ACL checks launch PowerShell for each directory validation. These are
+          # integration-test deadlines, not production worker/RPC timeouts.
+          log="$PWD/.local/windows-media-filesystem.log"
+          npm run test -w packages/backend -- file-operations.test.ts json-store-durable.test.ts json-store-rename.test.ts media-store.test.ts media-maintenance-preview.test.ts media-maintenance-transactions.test.ts --maxWorkers=2 --testTimeout=120000 --hookTimeout=30000 >"$log" 2>&1 &
+          media_tests_pid=$!
+          package_status=0
+          npm run package:release -- --arch ${{ matrix.arch }} --output .local/release-output || package_status=$?
+          media_tests_status=0
+          wait "$media_tests_pid" || media_tests_status=$?
+          echo "--- Windows media filesystem verification ---"
+          cat "$log"
+          if [ "$package_status" -ne 0 ]; then
+            exit "$package_status"
+          fi
+          exit "$media_tests_status"
       - name: Build and verify desktop package
-        if: runner.os != 'Linux'
+        if: runner.os != 'Linux' && runner.os != 'Windows'
         run: npm run package:release -- --arch ${{ matrix.arch }} --output .local/release-output
       - name: Build and verify Linux desktop under a virtual display
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run package:release -- --arch x64 --output .local/release-output
-      - name: Verify Windows media filesystem contracts
-        if: runner.os == 'Windows'
-        # Native ACL checks launch PowerShell for each directory validation. This is
-        # an integration-test deadline, not a production worker/RPC timeout.
-        run: npm run test -w packages/backend -- file-operations.test.ts json-store-durable.test.ts json-store-rename.test.ts media-store.test.ts media-maintenance-preview.test.ts media-maintenance-transactions.test.ts --maxWorkers=2 --testTimeout=120000 --hookTimeout=30000
       - name: Verify Windows packaged media worker and recovery
         if: runner.os == 'Windows'
         run: node scripts/check-session-media-package.mjs --build-output .local/release-output

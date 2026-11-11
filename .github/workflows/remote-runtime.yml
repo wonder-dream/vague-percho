@@ -47,40 +47,48 @@ jobs:
             -v "$PWD:/source:ro" --tmpfs /source/node_modules \
             -v "$PWD/.local/runtime-${ARTIFACT_ARCH}:/output" \
             percho-runtime-build node /source/scripts/build-remote-runtime.mjs --out /output
-      - name: Verify actual package without checkout or external network
-        run: |
-          docker run --rm --platform "$PLATFORM" --network none \
-            --tmpfs /runtime:mode=0700,exec --tmpfs /state:mode=0700 \
-            -v "$PWD/scripts:/verify:ro" \
-            -v "$PWD/.local/runtime-${ARTIFACT_ARCH}:/artifacts:ro" \
-            percho-runtime-build sh /verify/remote-runtime/check-artifact.sh
-      - name: Verify desktop installer against the target archive
-        run: |
-          docker run --rm --platform "$PLATFORM" --network none \
-            --tmpfs /state:mode=0700,exec \
-            -v "$PWD/scripts:/verify:ro" \
-            -v "$PWD/packages/backend/src/runtime/install-script.ts:/bootstrap.mjs:ro" \
-            -v "$PWD/.local/runtime-${ARTIFACT_ARCH}:/artifacts:ro" \
-            percho-runtime-build node /verify/verify-remote-runtime-install.mjs
       - name: Prepare Node Current compatibility environment
         run: >-
           docker buildx build --load --platform "$PLATFORM" --build-arg NODE_VERSION=26.12.1
           --cache-from "type=gha,scope=runtime-current-${ARTIFACT_ARCH}"
           --cache-to "type=gha,mode=max,scope=runtime-current-${ARTIFACT_ARCH}"
           -t percho-runtime-current -f scripts/remote-runtime/Dockerfile scripts/remote-runtime
-      - name: Verify the same archive with Node Current
+      - name: Verify the same archive with Node 22 and Node Current in parallel
+        shell: bash
         run: |
-          docker run --rm --platform "$PLATFORM" --network none \
-            --tmpfs /runtime:mode=0700,exec --tmpfs /state:mode=0700 \
-            -v "$PWD/scripts:/verify:ro" \
-            -v "$PWD/.local/runtime-${ARTIFACT_ARCH}:/artifacts:ro" \
-            percho-runtime-current sh /verify/remote-runtime/check-artifact.sh
-          docker run --rm --platform "$PLATFORM" --network none \
-            --tmpfs /state:mode=0700,exec \
-            -v "$PWD/scripts:/verify:ro" \
-            -v "$PWD/packages/backend/src/runtime/install-script.ts:/bootstrap.mjs:ro" \
-            -v "$PWD/.local/runtime-${ARTIFACT_ARCH}:/artifacts:ro" \
-            percho-runtime-current node /verify/verify-remote-runtime-install.mjs
+          verify_archive() {
+            local image="$1"
+            # Each container gets private writable state and read-only source/artifacts.
+            docker run --rm --platform "$PLATFORM" --network none \
+              --tmpfs /runtime:mode=0700,exec --tmpfs /state:mode=0700 \
+              -v "$PWD/scripts:/verify:ro" \
+              -v "$PWD/.local/runtime-${ARTIFACT_ARCH}:/artifacts:ro" \
+              "$image" sh /verify/remote-runtime/check-artifact.sh
+            docker run --rm --platform "$PLATFORM" --network none \
+              --tmpfs /state:mode=0700,exec \
+              -v "$PWD/scripts:/verify:ro" \
+              -v "$PWD/packages/backend/src/runtime/install-script.ts:/bootstrap.mjs:ro" \
+              -v "$PWD/.local/runtime-${ARTIFACT_ARCH}:/artifacts:ro" \
+              "$image" node /verify/verify-remote-runtime-install.mjs
+          }
+          log_dir="$PWD/.local/runtime-${ARTIFACT_ARCH}/verification"
+          mkdir -p "$log_dir"
+          verify_archive percho-runtime-build >"$log_dir/node22.log" 2>&1 &
+          node22_pid=$!
+          verify_archive percho-runtime-current >"$log_dir/node-current.log" 2>&1 &
+          current_pid=$!
+          node22_status=0
+          current_status=0
+          wait "$node22_pid" || node22_status=$?
+          wait "$current_pid" || current_status=$?
+          echo "--- Node 22 verification ---"
+          cat "$log_dir/node22.log"
+          echo "--- Node Current verification ---"
+          cat "$log_dir/node-current.log"
+          if [ "$node22_status" -ne 0 ] || [ "$current_status" -ne 0 ]; then
+            echo "Runtime verification failed: Node 22=$node22_status, Node Current=$current_status"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: remote-runtime-${{ matrix.arch }}
