@@ -26,7 +26,7 @@ export function CommentPackageCard({
 					<PencilIcon size={10} />
 					{t("composer.commentSelection")}
 				</span>
-				<Tooltip label={comment.quote}>
+				<Tooltip label={comment.quote} className="min-w-0 flex-1 !shrink">
 					<span className="min-w-0 truncate text-ui-12 text-ink-2">{summary}</span>
 				</Tooltip>
 				<button
