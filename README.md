@@ -69,22 +69,12 @@ Prebuilt installers are published on the [Releases](https://github.com/wonder-dr
 
 | Platform | Download |
 | --- | --- |
-| macOS (Apple Silicon) | `percho-mac-arm64.dmg` |
-| macOS (Intel) | `percho-mac-x64.dmg` |
-| Windows | `percho-windows-x64.exe` (installer) or `percho-windows-x64.zip` |
+| Windows (x64) | `percho-windows-x64.exe` (installer) or `percho-windows-x64.zip` (portable) |
 | Linux (x64) | `percho-linux-x86_64.AppImage` |
 
-> Builds are ad-hoc signed (no Developer ID certificate). On macOS, the first launch after a download may show **"Apple cannot verify Percho is free from malware"** — that's Gatekeeper blocking an un-notarized app. To open it:
+> Updates are checked, downloaded, and installed in-app on both Windows and Linux. The Windows installer is not commercially signed; click "More info" → "Run anyway" when SmartScreen appears.
 >
-> 1. **System Settings → Privacy & Security** → scroll to the bottom → click **Open Anyway** next to the Percho entry, then confirm with your password or Touch ID (recommended).
->
->    ![macOS Open Anyway](docs/assets/img/percho_mac_permission.png)
->
-> 2. Or in Terminal: `xattr -cr "/Applications/Percho.app"`.
->
-> Updates are checked in-app. On Windows they download and install there too (click download, then restart). On macOS the ad-hoc signed build cannot self-install, so the app jumps to the Releases page — and a freshly downloaded version will hit Gatekeeper once again. On Windows, click "More info" → "Run anyway" when SmartScreen appears.
->
-> On Linux: make the AppImage executable before first launch (`chmod +x percho-linux-x86_64.AppImage`). On Ubuntu 22.04+/24.04+ and derivatives, install `libfuse2` first — AppImages mount via FUSE 2, which is no longer preinstalled. Linux builds download and install updates in-app.
+> On Linux: make the AppImage executable before first launch (`chmod +x percho-linux-x86_64.AppImage`). On Ubuntu 22.04+/24.04+ and derivatives, install `libfuse2` first — AppImages mount via FUSE 2, which is no longer preinstalled.
 
 ## Development
 

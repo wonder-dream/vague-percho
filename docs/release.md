@@ -69,7 +69,7 @@ gh run watch "$release_run_id" --interval 30 --exit-status
 
 只保留一个观察进程，不同时反复查询 job、读取观察日志和启动多个 watch。检查失败时定位失败任务，状态不变时不重复汇报相同信息。
 
-[Release workflow](../.github/workflows/release.yml) 自动完成检查、两种 Linux SSH 运行包的构建与离线验收、三平台桌面打包和隔离启动验收。随后 [发布脚本](../scripts/publish-release.mjs) 校验整套产物的版本、来源、大小和摘要，全部上传到草稿并确认完整后才公开。
+[Release workflow](../.github/workflows/release.yml) 自动完成检查、两种 Linux SSH 运行包的构建与离线验收、Windows/Linux 桌面打包和隔离启动验收。随后 [发布脚本](../scripts/publish-release.mjs) 校验整套产物的版本、来源、大小和摘要，全部上传到草稿并确认完整后才公开。
 
 正式版设为 latest，保留稳定下载名和更新源，并触发官网刷新；Beta/RC 为 prerelease，不成为 latest、不刷新正式官网。hook 未配置时任务会明确跳过；hook成功只表示刷新请求成功，不等于官网已经完成部署。
 
@@ -90,9 +90,9 @@ gh release download "$release_tag" --dir "$release_dir/verify" \
 逐项确认：
 
 - `published.json` 的标签、目标提交和正文正确，`draft=false`；正式版 `prerelease=false`，且 `/repos/wonder-dream/vague-percho/releases/latest` 返回本版。Beta/RC 则确认 prerelease 且未改变正式版 latest。
-- 三平台 `release-*.json` 为本次版本、同一源码提交，`passed=true`、`mode=release`；两份运行包元数据也指向同版同提交。
+- Windows/Linux 两份 `release-*.json` 为本次版本、同一源码提交，`passed=true`、`mode=release`；两份运行包元数据也指向同版同提交。
 - 每份报告列出的资产都已上传，GitHub 资产的 `size`、`digest` 与报告中的字节数、SHA256对应；两份 SSH 归档同样与各自元数据一致。摘要缺失或不一致时再下载相关资产取证，不把缺失当作通过。
-- 正式版的 `latest.yml`、`latest-mac.yml`、`latest-linux.yml` 均指向本版，报告列出的安装包、更新文件、摘要和运行包齐全。预期资产以 [整包校验逻辑](../scripts/release/bundle.mjs) 为准，不硬编码资产总数。
+- 正式版的 `latest.yml`、`latest-linux.yml` 均指向本版，报告列出的安装包、更新文件、摘要和运行包齐全。预期资产以 [整包校验逻辑](../scripts/release/bundle.mjs) 为准，不硬编码资产总数。
 
 公开前的字节和摘要验证已由发布脚本执行，公开侧只核对小型报告和资产元数据。核验通过后记录发行链接、源码提交和 workflow 链接即可。诊断文件留在忽略的任务目录，不提交下载产物、凭据或本机数据；本次启动的测试进程应全部退出。
 
@@ -112,4 +112,4 @@ gh release download "$release_tag" --dir "$release_dir/verify" \
 gh workflow run release.yml --ref main -f version=0.6.8-beta.1 -f publish=false
 ```
 
-手动构建也要核对实际运行的源码提交。若要公开 Beta/RC，使用上面的草稿与标签主流程。需要本机调试包才进入 [本地构建](build-release.md#本地-macos-内测包)，不把本机调试打包加进每次正式发版。
+手动构建也要核对实际运行的源码提交。若要公开 Beta/RC，使用上面的草稿与标签主流程。需要本机调试包才进入 [本地构建](build-release.md#本地桌面内测包)，不把本机调试打包加进每次正式发版。
