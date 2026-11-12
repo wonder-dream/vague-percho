@@ -13,6 +13,7 @@ import { artifactNames, builderTargetArguments, releasePlan, root } from "./plan
 import { run } from "./run.mjs";
 import { prepareRuntimeManifest } from "./runtime-manifest.mjs";
 import { verifyApp } from "./verify-app.mjs";
+import { createWindowsPortableArchive } from "./windows-portable.mjs";
 
 const release = releasePlan("0.6.6-beta.1", "a".repeat(40));
 const hash = (value) => createHash("sha256").update(value).digest("hex");
@@ -125,6 +126,41 @@ test("builder receives explicit targets so inherited macOS x64 targets cannot ex
 		for (const types of targets.values()) assert.deepEqual(types, ["dmg", "zip"]);
 	}
 });
+test("Windows still publishes a portable ZIP, but electron-builder only creates the NSIS installer", () => {
+	assert.deepEqual(builderTargetArguments("win32", ["x64"], false), ["--win", "nsis", "--x64"]);
+	assert.ok(artifactNames(release, "win32", ["x64"]).includes("percho-beta-0.6.6-beta.1-windows-x64.zip"));
+});
+
+test("Windows portable ZIP uses standard bsdtar entries and verifies required application files", {
+	skip: process.platform !== "win32",
+}, async (t) => {
+	const directory = await fixture(t);
+	const application = join(directory, "win-unpacked");
+	const executable = join(application, "Percho Beta.exe");
+	const asar = join(application, "resources/app.asar");
+	await mkdir(join(asar, ".."), { recursive: true });
+	await writeFile(executable, "application");
+	await writeFile(asar, "asar fixture");
+	const archive = join(directory, "percho.zip");
+	await createWindowsPortableArchive(application, archive, [executable, asar]);
+	const extracted = join(directory, "extracted");
+	await mkdir(extracted);
+	await promisify(execFile)(join(process.env.SystemRoot, "System32", "tar.exe"), [
+		"-xf",
+		archive,
+		"-C",
+		extracted,
+	]);
+	assert.equal(await readFile(join(extracted, "Percho Beta.exe"), "utf8"), "application");
+	assert.equal(await readFile(join(extracted, "resources/app.asar"), "utf8"), "asar fixture");
+	await assert.rejects(
+		createWindowsPortableArchive(application, join(directory, "incomplete.zip"), [
+			join(application, "missing.exe"),
+		]),
+		/missing\.exe/,
+	);
+});
+
 test("runtime manifest requires both architectures, exact version/source and intact bytes", async (t) => {
 	const directory = await fixture(t);
 	await runtimes(directory);

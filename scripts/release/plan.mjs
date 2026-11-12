@@ -53,11 +53,12 @@ export function artifactNames(release, platform, architectures) {
 }
 
 export function builderTargetArguments(platform, architectures, unpacked) {
+	// The Windows portable ZIP is written with native bsdtar after app verification.
 	const targets =
 		platform === "darwin"
 			? ["--mac", "dmg", "zip"]
 			: platform === "win32"
-				? ["--win", "nsis", "zip"]
+				? ["--win", "nsis"]
 				: ["--linux", "AppImage"];
 	// Nonempty CLI targets override inherited target architectures; --arm64 alone does not.
 	return [...(unpacked ? ["--dir"] : targets), ...architectures.map((arch) => `--${arch}`)];

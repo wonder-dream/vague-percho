@@ -17,6 +17,7 @@ import {
 import { run, sha256 } from "./release/run.mjs";
 import { prepareRuntimeManifest } from "./release/runtime-manifest.mjs";
 import { verifyApp } from "./release/verify-app.mjs";
+import { createWindowsPortableArchive } from "./release/windows-portable.mjs";
 
 const { values: args } = parseArgs({
 	options: {
@@ -95,15 +96,19 @@ if (args.help) {
 			if (platform === "darwin") await run("codesign", ["--verify", "--deep", "--strict", app]);
 		}
 		const app = nativeApp(buildOutput, platform, process.arch, channels[release.channel].name);
+		const executable = appExecutable(app, platform, channels[release.channel].name, release.channel);
 		await run(
 			process.execPath,
-			[
-				resolve(root, "scripts/check-local-storage-startup.mjs"),
-				"--app",
-				appExecutable(app, platform, channels[release.channel].name, release.channel),
-			],
+			[resolve(root, "scripts/check-local-storage-startup.mjs"), "--app", executable],
 			{ cwd: root, env },
 		);
+		if (platform === "win32" && !args.dir) {
+			const archive = artifactNames(release, platform, architectures).find((name) => name.endsWith(".zip"));
+			await createWindowsPortableArchive(app, join(buildOutput, archive), [
+				executable,
+				join(app, "resources/app.asar"),
+			]);
+		}
 		const files = (await readdir(buildOutput, { withFileTypes: true }))
 			.filter(
 				(file) =>
