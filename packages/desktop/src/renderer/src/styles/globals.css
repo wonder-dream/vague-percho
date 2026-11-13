@@ -188,7 +188,7 @@
 	--markdown-quote-text: #b4b6c0;
 	--markdown-table-border: #424450;
 	--markdown-link-decoration: #ff79c6;
-	--markdown-link-hover: #ff9bd5;
+	--markdown-link-hover: #bd93f9;
 	--shimmer-highlight: rgba(248, 248, 242, 0.95);
 	--shadow-soft: 0 0 14px -2px rgba(0, 0, 0, 0.35);
 	--shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -1277,6 +1277,10 @@ code {
 	margin: 0.6rem 0 0.3rem;
 	font-size: calc(15px * var(--fs-ui-scale, 1));
 }
+.markdown-body .link-node,
+.markdown-body .link-loading {
+	color: var(--color-accent);
+}
 .markdown-body .link-node {
 	text-decoration: underline;
 	text-decoration-color: var(--markdown-link-decoration);
@@ -1284,7 +1288,7 @@ code {
 .markdown-body .link-node:hover {
 	color: var(--markdown-link-hover);
 	/* markstream 默认 hover 用 text-decoration 简写，会把下划线颜色重置成 currentColor 并加 0.2rem 偏移，这里压回设计态 */
-	text-decoration-color: var(--markdown-link-decoration);
+	text-decoration-color: currentColor;
 	text-underline-offset: auto;
 }
 /* 代码块容器：无边框悬浮卡片（设计语言 rounded-xl bg-surface shadow-soft 同 QueueBar/TodoPanel；

@@ -97,6 +97,18 @@ describe("globals.css", () => {
 			"calc(18px * var(--fs-code-scale, 1))",
 		]);
 	});
+
+	it("markdown 链接显式走主题强调色，不被 markstream 内联 --link-color:#0366d6 落回默认蓝；Dracula 悬停走紫色 #bd93f9", () => {
+		expect(globals).toMatch(
+			/\.markdown-body \.link-node,\s*\.markdown-body \.link-loading\s*\{\s*color:\s*var\(--color-accent\);/,
+		);
+		expect(globals).toMatch(
+			/:root\[data-palette="dracula"\][\s\S]*?--color-accent:\s*#ff79c6;[\s\S]*?--markdown-link-decoration:\s*#ff79c6;\s*--markdown-link-hover:\s*#bd93f9;/,
+		);
+		expect(globals).toMatch(
+			/\.markdown-body \.link-node:hover\s*\{[\s\S]*?color:\s*var\(--markdown-link-hover\);[\s\S]*?text-decoration-color:\s*currentColor;/,
+		);
+	});
 });
 
 describe("组件里的字号", () => {
