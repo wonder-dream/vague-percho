@@ -49,6 +49,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
+      - name: Verify performance records and owned-process cleanup
+        run: npm run test:perf
 
   desktop:
     needs: [prepare, runtime]

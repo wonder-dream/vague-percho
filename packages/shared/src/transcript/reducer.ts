@@ -1,5 +1,6 @@
 import { readComposerDocument } from "../composer-document";
 import { buildStreamGuardUiError, type UiError } from "../errors";
+import { modelGenerationStats } from "../model-generation";
 import type { ImageInput, SessionEvent } from "../session";
 import { parseExpandedSkillInvocation } from "../skill-invocation";
 import { extractSubagentRuns, subagentUiStatus } from "../subagent";
@@ -142,9 +143,11 @@ function applyAssistantMessageUpdate(streaming: StreamingState, e: AssistantStre
 	}
 }
 
-function finalizeStreaming(state: SessionTranscriptState): SessionTranscriptState {
+function finalizeStreaming(state: SessionTranscriptState, response?: unknown): SessionTranscriptState {
 	const { streaming, messages } = state;
 	if (!streaming) return state;
+	const hasResponse = (response as { role?: unknown } | undefined)?.role === "assistant";
+	const generation = modelGenerationStats(response);
 	// 子代理运行：排在 assistant 消息之后落地（对齐历史回放顺序）
 	const subagents: UIMessage[] =
 		streaming.subagentRuns.length > 0
@@ -167,7 +170,8 @@ function finalizeStreaming(state: SessionTranscriptState): SessionTranscriptStat
 		timestamp: Date.now(),
 	}));
 	const hasContent = streaming.text.length > 0 || streaming.thinking.length > 0 || streaming.tools.length > 0;
-	if (!hasContent) {
+	// 真实空回复也保留统计载体；未知用量不能被悄悄跳过，否则会把部分请求误算成整轮。
+	if (!hasContent && !hasResponse) {
 		return images.length > 0 || subagents.length > 0
 			? { ...state, messages: [...messages, ...subagents, ...images], streaming: null }
 			: { ...state, streaming: null };
@@ -180,11 +184,12 @@ function finalizeStreaming(state: SessionTranscriptState): SessionTranscriptStat
 	const preTools =
 		textIdx == null ? streaming.tools : streaming.tools.filter((t) => (t.blockIndex ?? 0) < textIdx);
 	const assistantMessages: UIMessage[] = [];
-	if (streaming.text || streaming.thinking || preTools.length > 0) {
+	if (streaming.text || streaming.thinking || preTools.length > 0 || hasResponse) {
 		assistantMessages.push({
 			kind: "assistant",
 			// 复用流式容器预生成的 id（key 稳定 → 不 remount，见 StreamingState.id 注释）
 			id: streaming.id,
+			...(generation ? { generation } : {}),
 			text: streaming.text,
 			thinking: streaming.thinking,
 			tools: preTools,
@@ -198,6 +203,7 @@ function finalizeStreaming(state: SessionTranscriptState): SessionTranscriptStat
 			text: "",
 			thinking: "",
 			tools: postTools,
+			generation: null,
 			timestamp: Date.now(),
 		});
 	}
@@ -355,12 +361,17 @@ export function reduceEvent(state: SessionTranscriptState, event: SessionEvent):
 			};
 			// 乐观回显认领：本次发送已本地插了一条同位置气泡（appendOptimisticUserMessage），
 			// 权威消息到达就**原位替换**（不追加）——气泡不闪、不重排，缩略图换成权威那版。
-			// 判据：存在 pending 用户消息，且它之后**没有再插过用户消息**（中间可能夹了 system 通知行，忽略）；
-			// 只有空闲发送才插 pending，而运行中发送走队列、队列在本次用户消息之后才 drain，所以它一定还尾着。
-			const pendingIndex = findLastIndex(state.messages, (m) => m.kind === "user" && m.pending === true);
-			const claimable =
-				pendingIndex >= 0 && !state.messages.slice(pendingIndex + 1).some((m) => m.kind === "user");
-			if (claimable) {
+			// 暂停后人工恢复会留下多个 pending，SDK 按受理顺序发布旧队列与新消息；
+			// 从最后一条已确认用户消息之后，认领最早的 pending（忽略夹入的系统通知）。
+			// 不比较文本：模板/skill 展开会改正文，用户也可能确实连发相同内容。
+			let pendingIndex = -1;
+			for (let index = state.messages.length - 1; index >= 0; index--) {
+				const candidate = state.messages[index];
+				if (candidate?.kind !== "user") continue;
+				if (!candidate.pending) break;
+				pendingIndex = index;
+			}
+			if (pendingIndex >= 0) {
 				return {
 					...state,
 					messages: [
@@ -568,7 +579,7 @@ export function reduceEvent(state: SessionTranscriptState, event: SessionEvent):
 		case "auto_retry_end":
 			return { ...state, retrying: null };
 		case "turn_end": {
-			const final = finalizeStreaming({ ...state, phase: "idle" });
+			const final = finalizeStreaming({ ...state, phase: "idle" }, event.message);
 			// LLM 错误轮：不当场落卡，挂 pending 等 agent_end 的 willRetry 判定（决策 D1：
 			// SDK 每个 retry 轮都发 turn_end(error)，只有最终失败才落卡；判定与 replay 路径
 			// 共用 isLlmErrorRound——live/replay 唯一事实源，llm-errors.ts）

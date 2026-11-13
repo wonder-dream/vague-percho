@@ -20,7 +20,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import nodePolicy from "../packages/shared/src/runtime-node-policy.json" with { type: "json" };
 import { currentRelease } from "./release/plan.mjs";
-import { runtimeBuildAliases, runtimeBuildLock } from "./remote-runtime/production-lock.mjs";
+import {
+	RUNTIME_NPM_REGISTRY,
+	runtimeBuildAliases,
+	runtimeBuildLock,
+} from "./remote-runtime/production-lock.mjs";
 
 const exec = promisify(execFile),
 	repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -56,12 +60,18 @@ try {
 	);
 	await writeFile(join(stage, "package.json"), JSON.stringify(selected.manifest, null, 2));
 	await writeFile(join(stage, "package-lock.json"), JSON.stringify(selected.lock, null, 2));
-	await run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"]);
+	await run("npm", [
+		"ci",
+		`--registry=${RUNTIME_NPM_REGISTRY}`,
+		"--ignore-scripts",
+		"--no-audit",
+		"--no-fund",
+	]);
 	const patches = join(work, "patches");
 	await mkdir(patches);
 	for (const name of [
-		"@earendil-works+pi-agent-core+1.4.0.patch",
-		"@earendil-works+pi-coding-agent+1.4.0.patch",
+		"@earendil-works+pi-agent-core+1.5.1.patch",
+		"@earendil-works+pi-coding-agent+1.5.1.patch",
 	]) {
 		await copyFile(join(repo, "patches", name), join(patches, name));
 	}
@@ -79,6 +89,7 @@ try {
 			client: "packages/backend/src/runtime/client.ts",
 			server: "packages/backend/src/runtime/server.ts",
 			"session-media-worker": "packages/backend/src/session/media-maintenance-worker.ts",
+			"session-catalog-worker": "packages/backend/src/session/catalog-worker.ts",
 		},
 		bundle: true,
 		splitting: true,
@@ -145,6 +156,7 @@ try {
 	await access(sdkRequire.resolve("quickjs-wasi/quickjs.wasm"));
 	for (const file of [
 		"session-media-worker.mjs",
+		"session-catalog-worker.mjs",
 		"node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js",
 		"node_modules/@earendil-works/pi-coding-agent/dist/core/export-html/template.html",
 	])

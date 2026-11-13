@@ -4,6 +4,7 @@ export type { CompactionPause } from "@earendil-works/pi-coding-agent";
 
 import type { ComposerDocument } from "./composer-document";
 import type { DisplayImage } from "./display-image";
+import type { ModelGenerationStats } from "./model-generation";
 import type { SkillInvocationDisplay } from "./skill-invocation";
 import type { SubagentRunData } from "./subagent";
 
@@ -148,6 +149,10 @@ export interface SessionMeta {
 	createdAt: number;
 	/** 最后活动时间（unix 毫秒，历史会话列表排序/分组用） */
 	modifiedAt?: number;
+	/** 后端归档权威状态的目录投影；缺省为未归档，不可替代执行前核验。 */
+	archivedAt?: number;
+	archiveRevision?: number;
+	archiveCleanupPending?: boolean;
 }
 
 export interface SessionStats {
@@ -203,6 +208,8 @@ export interface SessionUserMessage extends SessionBaseMessage {
 /** 历史 assistant 消息（打开历史会话时回放用；不依赖 pi 内部类型） */
 export interface SessionAssistantMessage extends SessionBaseMessage {
 	role: "assistant";
+	/** 模型请求实测统计；undefined = 缺失，null = 同一回复拆出的额外展示片段，不重复计量。 */
+	generation?: ModelGenerationStats | null;
 	/** 停因原样透传（仅 "error" 被消费，历史回放错误卡数据源；旧会话文件无此字段 → undefined → 不产卡） */
 	stopReason?: string;
 	/** LLM 错误详情（stopReason==="error" 时存在；历史回放错误卡 detail 数据源） */

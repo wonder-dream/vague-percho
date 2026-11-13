@@ -36,6 +36,8 @@ import type { RegisteredSession, SessionRegistry } from "../src/session/registry
 import { emitSessionShutdown } from "../src/session/shutdown";
 import { beginSessionSwitchProbe, finishSessionSwitchProbe } from "../src/session/switch-diagnostics";
 import { createCompactionRequestPolicy } from "../src/tools/compaction-guard/request-policy";
+import { makeEvapExtension } from "../src/tools/context-evaporation/extension";
+import { DEFAULT_EVAP_CONFIG } from "../src/tools/context-evaporation/types";
 
 const roots: string[] = [];
 const sessions: AgentSession[] = [];
@@ -105,7 +107,7 @@ async function fixture(
 		settingsManager,
 		resourceLoader,
 		noTools,
-		sessionManager: providedManager ?? SessionManager.create(cwd, join(root, "sessions")),
+		sessionManager: providedManager ?? SessionManager.create(cwd),
 		modelRuntime: {
 			getModel: () => model,
 			hasConfiguredAuth: () => true,
@@ -165,6 +167,7 @@ async function fixture(
 		},
 		composer,
 		resourceLoader,
+		agentDir,
 		cwd,
 		session,
 		requests,
@@ -178,7 +181,7 @@ async function fixture(
 	};
 }
 
-describe("SDK 1.4 real offline run lifecycle", () => {
+describe("SDK 1.5.1 real offline run lifecycle", () => {
 	it("诊断开关不改变真实SDK模型消息或扩展触发次数", async () => {
 		const run = async (enabled: boolean) => {
 			let starts = 0;
@@ -353,6 +356,8 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 		expect(fork.getSessionId()).not.toBe(sourceId);
 		expect(fork.getHeader()?.parentSession).toBe(file);
 		expect(fork.getEntries().map((entry) => entry.id)).toEqual(manager.getBranch().map((entry) => entry.id));
+		// Both registered sources belong to the first backend environment, not the fork runtime's settings.
+		vi.stubEnv("PI_CODING_AGENT_DIR", f.agentDir);
 		const backend = new PiBackend({ projectTrust: false, permissionGates: false, sessionMediaStore: media });
 		const registry = (backend as unknown as { registry: SessionRegistry }).registry;
 		for (const item of [f, other])
@@ -518,6 +523,7 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 			unsubscribe: () => {},
 			gate: { dispose: () => {} },
 			dialogs: { dispose: () => {} },
+			modeRef: { current: "default" },
 		} as RegisteredSession);
 		const document: ComposerDocument = {
 			version: 1,
@@ -619,6 +625,85 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 		}
 	});
 
+	it("recall updates the next real request while retaining the old branch on disk", async () => {
+		const f = await fixture(() => []);
+		const backend = new PiBackend({ projectTrust: false, permissionGates: false });
+		(backend as unknown as { registry: SessionRegistry }).registry.add({
+			session: f.session,
+			cwd: f.cwd,
+			modeRef: { current: "default" },
+			unsubscribe: () => {},
+			gate: { dispose: () => {} },
+			dialogs: { dispose: () => {} },
+		} as RegisteredSession);
+		try {
+			await f.session.prompt("earlier request");
+			await f.session.prompt("withdrawn unique request");
+			const user = f.session.sessionManager
+				.getBranch()
+				.findLast((entry) => entry.type === "message" && entry.message.role === "user");
+			if (!user) throw new Error("Missing user entry");
+			await backend.recallMessage(f.session.sessionId, { entryId: user.id });
+			await f.session.prompt("replacement request");
+			const request = JSON.stringify(f.requests.at(-1));
+			expect(request).toContain("earlier request");
+			expect(request).toContain("replacement request");
+			expect(request).not.toContain("withdrawn unique request");
+			expect(JSON.stringify(SessionManager.open(f.session.sessionFile as string).getEntries())).toContain(
+				"withdrawn unique request",
+			);
+		} finally {
+			await backend.dispose();
+		}
+	});
+
+	it("applies evaporation to the actual request without changing persisted tool history", async () => {
+		const f = await fixture(({ agentDir }) => [
+			makeEvapExtension({
+				agentDir,
+				getConfig: () => ({ ...DEFAULT_EVAP_CONFIG, budgetTokens: 4000, protectionTokens: 100 }),
+				reporter: () => {},
+			}),
+		]);
+		const sm = f.session.sessionManager;
+		const original = Array.from({ length: 20 }, (_, i) => `${i} ${"a".repeat(30)}`).join("\n");
+		sm.appendMessage({ role: "user", content: "read the fixture", timestamp: 1 });
+		sm.appendMessage({
+			role: "assistant",
+			api: model.api,
+			provider: model.provider,
+			model: model.id,
+			timestamp: 2,
+			stopReason: "toolUse",
+			content: [{ type: "toolCall", id: "read-1", name: "read", arguments: { path: "fixture.txt" } }],
+			usage: {
+				input: 3900,
+				output: 1,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 3901,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+		});
+		sm.appendMessage({
+			role: "toolResult",
+			toolCallId: "read-1",
+			toolName: "read",
+			content: [{ type: "text", text: original }],
+			isError: false,
+			timestamp: 3,
+		});
+		f.session.refreshContext();
+		await f.session.bindExtensions({ mode: "rpc" });
+		await f.session.prompt(`continue ${"background ".repeat(100)}`);
+		expect(JSON.stringify(f.requests[0])).toContain("输出已淘汰");
+		expect(JSON.stringify(f.requests[0])).not.toContain(JSON.stringify(original));
+		expect(JSON.stringify(sm.getBranch())).toContain(JSON.stringify(original));
+		expect(JSON.stringify(SessionManager.open(f.session.sessionFile as string).getBranch())).toContain(
+			JSON.stringify(original),
+		);
+	});
+
 	it("manual retry reuses the accepted skill snapshot without adding a user message or reading the deleted resource", async () => {
 		let file = "";
 		const f = await fixture(({ cwd }) => {
@@ -635,6 +720,7 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 			unsubscribe: () => {},
 			gate: { dispose: () => {} },
 			dialogs: { dispose: () => {} },
+			modeRef: { current: "default" },
 		} as RegisteredSession);
 		const document: ComposerDocument = {
 			version: 1,
@@ -865,6 +951,7 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 			unsubscribe: () => {},
 			gate: { dispose: () => {} },
 			dialogs: { dispose: () => {} },
+			modeRef: { current: "default" },
 		} as RegisteredSession);
 		const document: ComposerDocument = {
 			version: 1,
@@ -902,6 +989,8 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 			const reopened = SessionManager.open(file);
 			const messages = toBranchSessionMessages(reopened.getBranch());
 			expect(messages[0]).toMatchObject({ role: "user", text: "?quick before test after test", document });
+			expect(JSON.stringify(messages)).not.toContain("<!--percho-input-");
+			expect(JSON.stringify(starts)).not.toContain("<!--percho-input-");
 			expect(JSON.stringify(starts)).not.toContain("UNIQUE_SKILL_DEFINITION");
 			expect(JSON.stringify(sanitizeSessionMessage(messages[0]))).not.toContain(skillResourceId(skillFile));
 			const start = starts[0] as never;
@@ -911,8 +1000,12 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 			const html = await backend.exportSession(f.session.sessionId, "html");
 			const payload = html.match(/<script id="session-data" type="application\/json">([^<]+)<\/script>/)?.[1];
 			if (!payload) throw new Error("missing HTML session data");
-			expect(Buffer.from(payload, "base64").toString()).not.toContain("UNIQUE_SKILL_DEFINITION");
-			expect(await backend.exportSession(f.session.sessionId, "jsonl")).toContain("UNIQUE_SKILL_DEFINITION");
+			const htmlData = Buffer.from(payload, "base64").toString();
+			expect(htmlData).not.toContain("UNIQUE_SKILL_DEFINITION");
+			expect(htmlData).not.toContain("<!--percho-input-");
+			const jsonl = await backend.exportSession(f.session.sessionId, "jsonl");
+			expect(jsonl).toContain("UNIQUE_SKILL_DEFINITION");
+			expect(jsonl).not.toContain("<!--percho-input-");
 		} finally {
 			await backend.dispose();
 		}
@@ -928,6 +1021,7 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 			unsubscribe: () => {},
 			gate: { dispose: () => {} },
 			dialogs: { dispose: () => {} },
+			modeRef: { current: "default" },
 		} as RegisteredSession);
 		const settled = new Promise<void>((resolve) => {
 			const unsubscribe = f.session.subscribe((event) => {
@@ -1114,7 +1208,7 @@ describe("SDK 1.4 real offline run lifecycle", () => {
 	});
 });
 
-describe("SDK 1.4 real offline tools", () => {
+describe("SDK 1.5.1 real offline tools", () => {
 	it.each([false, true])(
 		"MCP read-only calls bypass confirmation; unannotated calls require it: allow=%s",
 		async (allow) => {
