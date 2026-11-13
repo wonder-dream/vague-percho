@@ -21,7 +21,8 @@ export function createExecutionHandlers(
 		closeSession: ({ sessionId, intent }) => backend.closeSession(sessionId, intent),
 		getChannelSubscriptionSessionIds: () => backend.getChannelSubscriptionSessionIds(),
 		deleteSession: ({ sessionId, sessionFile }) => backend.deleteSession(sessionId, sessionFile),
-		prompt: ({ sessionId, text, images, document }) => backend.prompt(sessionId, text, images, document),
+		prompt: ({ sessionId, text, images, document, streamingBehavior }) =>
+			backend.prompt(sessionId, text, images, document, streamingBehavior),
 		retryLastFailedTurn: ({ sessionId, ref }) => backend.retryLastFailedTurn(sessionId, ref),
 		abort: ({ sessionId }) => backend.abort(sessionId),
 		setModel: ({ sessionId, provider, modelId }) => backend.setModel(sessionId, provider, modelId),

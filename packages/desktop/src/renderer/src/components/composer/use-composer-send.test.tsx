@@ -1,4 +1,4 @@
-import { composerDocumentFromText, emptyTranscript } from "@percho/shared";
+import { composerDocumentFromText, composerDocumentText, emptyTranscript } from "@percho/shared";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -59,6 +59,7 @@ describe("多附件输入不能被历史展示引用替换", () => {
 				text: "two images",
 				document: undefined,
 				images,
+				streamingBehavior: "steer",
 			});
 			const user = useTranscriptStore
 				.getState()
@@ -99,7 +100,7 @@ describe("多附件输入不能被历史展示引用替换", () => {
 });
 
 describe("运行展示不放宽原发送资格", () => {
-	it.each(["compacting", "full-queue"])("%s 拒绝普通草稿且保留正文和附件", async (reason) => {
+	it.each(["compacting", "full-queue", "full-steer"])("%s 拒绝普通草稿且保留正文和附件", async (reason) => {
 		useTranscriptStore.getState().loadHistory("fixture", []);
 		useTranscriptStore.setState((state) => ({
 			bySession: {
@@ -111,6 +112,7 @@ describe("运行展示不放宽原发送资格", () => {
 					agentActive: true,
 					phase: "idle",
 					compacting: reason === "compacting",
+					steeringQueue: reason === "full-steer" ? ["a", "b", "c"] : [],
 					followUpQueue: reason === "full-queue" ? ["queued"] : [],
 				},
 			},
@@ -121,7 +123,8 @@ describe("运行展示不放宽原发送资格", () => {
 			images: [{ data: "AQID", mimeType: "image/png" }],
 		};
 		useDraftStore.getState().updateDraft("fixture", () => draft);
-		await composer().handleSend();
+		// 两条队列各自限额：followUp 满只拦排队，steer 满只拦插入。
+		await composer().handleSend(reason === "full-queue" ? "followUp" : "steer");
 		expect(prompt).not.toHaveBeenCalled();
 		expect(useDraftStore.getState().bySession.fixture).toBe(draft);
 	});
@@ -183,6 +186,7 @@ describe("选区批注", () => {
 			text: "> const answer = await run();\n\n先解释执行路径\n\n> return result;\n\n再说明返回值\n\n请说明这两段内容的影响",
 			document: undefined,
 			images: undefined,
+			streamingBehavior: "steer",
 		});
 		expect(useDraftStore.getState().bySession.fixture).toBeUndefined();
 	});
@@ -201,6 +205,7 @@ describe("选区批注", () => {
 			text: "> 被选中的句子",
 			document: undefined,
 			images: undefined,
+			streamingBehavior: "steer",
 		});
 	});
 
@@ -231,6 +236,7 @@ describe("选区批注", () => {
 				],
 			},
 			images: undefined,
+			streamingBehavior: "steer",
 		});
 	});
 
@@ -278,9 +284,80 @@ describe("compaction recovery send", () => {
 				text: "inspect only",
 				document: undefined,
 				images: undefined,
+				streamingBehavior: "steer",
 			});
 			expect(useTranscriptStore.getState().bySession.fixture?.followUpQueue).toEqual(["modify config"]);
 			expect(useDraftStore.getState().bySession.fixture).toBeUndefined();
 		},
 	);
+});
+
+describe("运行中投递方式", () => {
+	const running = (queues: { steering?: string[]; followUp?: string[] } = {}) => {
+		useTranscriptStore.setState({
+			bySession: {
+				fixture: {
+					...emptyTranscript(),
+					pendingPermissions: [],
+					pendingDialogs: [],
+					agentActive: true,
+					phase: "idle",
+					steeringQueue: queues.steering ?? [],
+					followUpQueue: queues.followUp ?? [],
+				},
+			},
+		});
+	};
+	const typeText = (text: string) =>
+		useDraftStore
+			.getState()
+			.updateDraft("fixture", () => ({ ...EMPTY_DRAFT, document: composerDocumentFromText(text) }));
+
+	it("默认中途插入：运行中发送走 steer，不做空闲乐观回显", async () => {
+		running();
+		typeText("改用 pnpm");
+		await composer().handleSend();
+		expect(prompt).toHaveBeenCalledExactlyOnceWith({
+			sessionId: "fixture",
+			text: "改用 pnpm",
+			document: undefined,
+			images: undefined,
+			streamingBehavior: "steer",
+		});
+		expect(useTranscriptStore.getState().bySession.fixture?.messages.some((m) => m.kind === "user")).toBe(
+			false,
+		);
+	});
+
+	it("Ctrl/⌘+Enter 走 followUp 排队", async () => {
+		running();
+		typeText("下一轮再改文档");
+		await composer().handleSend("followUp");
+		expect(prompt.mock.calls[0]?.[0]?.streamingBehavior).toBe("followUp");
+	});
+
+	it("followUp 已满不阻止中途插入引导", async () => {
+		running({ followUp: ["queued"] });
+		typeText("先修正路径");
+		await composer().handleSend();
+		expect(prompt).toHaveBeenCalledOnce();
+		expect(prompt.mock.calls[0]?.[0]?.streamingBehavior).toBe("steer");
+	});
+
+	it("steer 未满载时可继续追加引导", async () => {
+		running({ steering: ["a", "b"] });
+		typeText("第三条");
+		await composer().handleSend();
+		expect(prompt).toHaveBeenCalledOnce();
+	});
+
+	it("取回时按投递顺序恢复：先待插入引导，再排队消息", async () => {
+		useTranscriptStore.getState().loadHistory("fixture", []);
+		clearQueue.mockResolvedValueOnce({ steering: ["steer first"], followUp: ["queued after"] });
+		await composer().handleRestoreQueue(() => {});
+		const draft = useDraftStore.getState().bySession.fixture;
+		const text = draft ? composerDocumentText(draft.document) : "";
+		expect(text.indexOf("steer first")).toBeGreaterThanOrEqual(0);
+		expect(text.indexOf("steer first")).toBeLessThan(text.indexOf("queued after"));
+	});
 });

@@ -192,16 +192,30 @@ export const SESSION_CHANNELS = {
 		sessionId: input.id,
 		sessionFile: input.optional(input.text),
 	}),
-	/** 发送消息；images 为随消息附带的图片（base64） */
+	/**
+	 * 发送消息；images 为随消息附带的图片（base64）。
+	 * streamingBehavior 只在 agent 运行中生效：steer=当前工具跑完即插入引导（不打断整轮），
+	 * followUp=本轮结束后再发；省略时后端按 followUp 处理（保持既有调用方语义）。
+	 */
 	prompt: ch(
 		"session:prompt",
 		"environment",
 		"mutation",
-	)<{ sessionId: string; text: string; images?: ImageInput[]; document?: ComposerDocument }, void>({
+	)<
+		{
+			sessionId: string;
+			text: string;
+			images?: ImageInput[];
+			document?: ComposerDocument;
+			streamingBehavior?: "steer" | "followUp";
+		},
+		void
+	>({
 		sessionId: input.id,
 		text: input.text,
 		images: input.optional(input.array(input.object({ data: input.text, mimeType: input.text }))),
 		document: input.optional(input.jsonObject<ComposerDocument>()),
+		streamingBehavior: input.optional(input.oneOf("steer", "followUp")),
 	}),
 	/** 仅重试当前末端模型失败，不新增用户消息；受理即返回，执行结果走事件流。 */
 	retryLastFailedTurn: ch(

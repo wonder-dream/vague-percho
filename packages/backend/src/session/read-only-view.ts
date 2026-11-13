@@ -19,6 +19,7 @@ export type RunningSessionSource = Pick<
 	| "getContextUsage"
 	| "getSessionStats"
 	| "getFollowUpMessages"
+	| "getSteeringMessages"
 	| "getAllTools"
 	| "getActiveToolNames"
 >;
@@ -109,6 +110,9 @@ export class ReadOnlySessionView {
 	}
 	getFollowUpMessages(): ReturnType<AgentSession["getFollowUpMessages"]> {
 		return this.live()?.getFollowUpMessages() ?? [];
+	}
+	getSteeringMessages(): ReturnType<AgentSession["getSteeringMessages"]> {
+		return this.live()?.getSteeringMessages() ?? [];
 	}
 	getAllTools() {
 		return this.live()?.getAllTools() ?? [];

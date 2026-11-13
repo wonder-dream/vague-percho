@@ -158,6 +158,7 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const followUpQueue = useTranscriptStore((s) => selectTranscript(s, activeSessionId).followUpQueue);
+	const steeringQueue = useTranscriptStore((s) => selectTranscript(s, activeSessionId).steeringQueue);
 	/** 压缩进行中：禁发（SDK 拒绝压缩中的 prompt；提前拦截保住草稿，warn 提示代替报错丢文本） */
 	const compacting = useTranscriptStore((s) => selectTranscript(s, activeSessionId).compacting);
 	/** 输入框有内容：streaming 中按钮从停止切回发送（入队后文本清空自动切回停止） */
@@ -180,7 +181,8 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 	const preparingRef = useRef<{ key: string; generation: number | undefined; promise: Promise<unknown> }[]>(
 		[],
 	);
-	const sendWhenReady = async () => {
+	/** streamingBehavior 只在运行中生效：默认 steer（中途插入引导），Ctrl/Cmd 修饰键走 followUp 排队。 */
+	const sendWhenReady = async (streamingBehavior: "steer" | "followUp" = "steer") => {
 		if (readOnly) return;
 		const generation =
 			activeSessionId === null ? useSessionsStore.getState().newSessionDraft?.generation : undefined;
@@ -188,7 +190,7 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 		await Promise.all(inFlight.map((p) => p.promise));
 		if (activeSessionId === null && generation !== useSessionsStore.getState().newSessionDraft?.generation)
 			return;
-		await handleSend();
+		await handleSend(streamingBehavior);
 	};
 	const focusEditor = () => editorRef.current?.focus();
 
@@ -313,7 +315,8 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 		}
 		if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
 			e.preventDefault();
-			void sendWhenReady();
+			// 运行中：Enter=中途插入引导（不打断整轮），Ctrl/Cmd+Enter=排队到本轮结束后再发。
+			void sendWhenReady(e.ctrlKey || e.metaKey ? "followUp" : "steer");
 		}
 	};
 
@@ -455,8 +458,12 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 						onPick={at.handleAtPick}
 					/>
 				)}
-				{followUpQueue.length > 0 && (
-					<QueueBar texts={followUpQueue} onRestore={() => void send.handleRestoreQueue(focusEditor)} />
+				{(steeringQueue.length > 0 || followUpQueue.length > 0) && (
+					<QueueBar
+						steering={steeringQueue}
+						followUp={followUpQueue}
+						onRestore={() => void send.handleRestoreQueue(focusEditor)}
+					/>
 				)}
 				{/* 扩展 setEditorText 预填提示（画板⑩）：一次性来源标注，首次键入即清除 */}
 				{extensionPrefillSource && (
@@ -575,8 +582,10 @@ export function Composer({ centered = false }: { centered?: boolean }) {
 								type="button"
 								className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-on-ink transition-colors hover:bg-ink-2 disabled:opacity-30"
 								disabled={readOnly || !hasContent || sending}
-								onClick={() => void sendWhenReady()}
+								onClick={(event) => void sendWhenReady(event.ctrlKey || event.metaKey ? "followUp" : "steer")}
 								aria-label={t("composer.send")}
+								aria-keyshortcuts={isStreaming ? "Enter Control+Enter Meta+Enter" : "Enter"}
+								title={isStreaming ? t("composer.sendSteerHint") : undefined}
 							>
 								<ArrowUpIcon size={20} />
 							</button>

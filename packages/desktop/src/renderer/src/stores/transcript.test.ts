@@ -774,15 +774,21 @@ describe("transcript reducer", () => {
 		});
 	});
 
-	it("queue_update 整组替换 followUpQueue（排队/投递/清空同一通道）", () => {
+	it("queue_update 整组替换两条队列（插入/排队/投递/清空同一通道）", () => {
 		let state = emptyTranscript();
+		expect(state.steeringQueue).toEqual([]);
 		expect(state.followUpQueue).toEqual([]);
 		state = reduceEvent(state, ev("queue_update", { steering: [], followUp: ["第一条"] }));
 		expect(state.followUpQueue).toEqual(["第一条"]);
-		state = reduceEvent(state, ev("queue_update", { steering: [], followUp: ["第二条", "第三条"] }));
+		state = reduceEvent(
+			state,
+			ev("queue_update", { steering: ["改用 pnpm"], followUp: ["第二条", "第三条"] }),
+		);
+		expect(state.steeringQueue).toEqual(["改用 pnpm"]);
 		expect(state.followUpQueue).toEqual(["第二条", "第三条"]);
 		// 投递完成 SDK 推空数组
 		state = reduceEvent(state, ev("queue_update", { steering: [], followUp: [] }));
+		expect(state.steeringQueue).toEqual([]);
 		expect(state.followUpQueue).toEqual([]);
 	});
 

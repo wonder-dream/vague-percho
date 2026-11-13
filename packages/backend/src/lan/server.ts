@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type {
+	ComposerDocument,
+	ImageInput,
 	LanPendingPermission,
 	LanSessionBrief,
 	LanSessionView,
@@ -120,7 +122,13 @@ export interface LanObserverBackend {
 	getPendingPermissionRequests(): PermissionRequest[];
 	/** M2 写端点前置检查（registry 直查，无磁盘 IO）。 */
 	checkSessionWritable(sessionId: string): "ok" | "not_found" | "read_only";
-	prompt(sessionId: string, text: string): Promise<void>;
+	prompt(
+		sessionId: string,
+		text: string,
+		images?: ImageInput[],
+		document?: ComposerDocument,
+		streamingBehavior?: "steer" | "followUp",
+	): Promise<void>;
 	abort(sessionId: string): Promise<void>;
 	respondPermission(requestId: string, answer: "allow" | "deny"): void;
 }
@@ -362,8 +370,14 @@ export class LanObserverServer {
 				this.audit(req, "prompt", route.id, "denied: too_long");
 				return this.sendJson(res, 400, { error: "prompt too long" });
 			}
+			// 运行中投递方式：省略=followUp（旧客户端语义）；显式传非法值直接拒绝，不静默降级。
+			const mode = (body.data as { streamingBehavior?: unknown }).streamingBehavior;
+			if (mode !== undefined && mode !== "steer" && mode !== "followUp") {
+				this.audit(req, "prompt", route.id, "denied: bad_mode");
+				return this.sendJson(res, 400, { error: "invalid streamingBehavior" });
+			}
 			try {
-				await this.backend.prompt(route.id, text);
+				await this.backend.prompt(route.id, text, undefined, undefined, mode);
 			} catch (error) {
 				const message = error instanceof Error ? error.message.split("\n")[0] : "prompt failed";
 				this.audit(req, "prompt", route.id, `error: ${message}`);

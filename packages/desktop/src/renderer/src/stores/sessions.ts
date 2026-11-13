@@ -1040,6 +1040,7 @@ export async function synchronizeEnvironmentSessions(
 						compactionPause: null,
 						summarizationRetry: null,
 						phase: "idle",
+						steeringQueue: [],
 						followUpQueue: [],
 						retrying: null,
 						pendingLlmError: null,
@@ -1084,6 +1085,7 @@ export async function synchronizeEnvironmentSessions(
 								: summary.streaming
 									? "streaming"
 									: "idle",
+							steeringQueue: summary.steeringQueue,
 							followUpQueue: summary.followUpQueue,
 						},
 					},

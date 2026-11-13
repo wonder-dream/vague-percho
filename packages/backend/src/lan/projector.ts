@@ -143,7 +143,7 @@ export function deriveView(sessionId: string, projection: SessionProjection): La
 		cwd: base.cwd,
 		agentActive: state.agentActive,
 		compacting: state.compacting,
-		queued: state.followUpQueue.length > 0,
+		queued: state.steeringQueue.length > 0 || state.followUpQueue.length > 0,
 		currentTool: currentToolOf(state),
 		assistantTail: assistantTailOf(state),
 		todos: state.todos,

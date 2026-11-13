@@ -614,8 +614,8 @@ export function reduceEvent(state: SessionTranscriptState, event: SessionEvent):
 			return final.pendingLlmError ? commitLlmErrorCard(final, final.pendingLlmError) : final;
 		}
 		case "queue_update":
-			// SDK 整组下发（steering 桌面端不用）；投递/清空都由 SDK 侧触发后推新数组
-			return { ...state, followUpQueue: [...event.followUp] };
+			// SDK 整组下发两条队列；投递/清空都由 SDK 侧触发后推新数组
+			return { ...state, steeringQueue: [...event.steering], followUpQueue: [...event.followUp] };
 		case "compaction_pause":
 			return event.pause
 				? {

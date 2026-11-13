@@ -87,6 +87,8 @@ interface TranscriptStore {
 	loadHistory: (sessionId: string, messages: UIMessage[]) => void;
 	/** 直接设置排队中的 followUp（打开/切换会话时从 backend 拉初始值；运行中由 queue_update 事件驱动） */
 	setFollowUpQueue: (sessionId: string, queue: string[]) => void;
+	/** 直接设置待插入的 steer 引导（与 followUp 同源：初始值来自 backend，运行中走 queue_update） */
+	setSteeringQueue: (sessionId: string, queue: string[]) => void;
 	/** 打开会话时从 backend 恢复任务列表（compaction 后 UI 面板数据源；仅写 todos，不动消息） */
 	loadTodos: (sessionId: string, todos: TodoItem[]) => void;
 }
@@ -279,6 +281,7 @@ export const useTranscriptStore = create<TranscriptStore>((set) => ({
 						compacting: false,
 						compactionPause: current?.compactionPause ?? null,
 						summarizationRetry: null,
+						steeringQueue: current?.steeringQueue ?? [],
 						followUpQueue: current?.followUpQueue ?? [],
 						// loadHistory 只换消息流（backend 回放会话树完整分支），todo 列表保留
 						todos: current?.todos ?? [],
@@ -302,6 +305,20 @@ export const useTranscriptStore = create<TranscriptStore>((set) => ({
 					[sessionId]: {
 						...(current ?? { ...EMPTY_ENTRY }),
 						followUpQueue: queue,
+					},
+				},
+			};
+		});
+	},
+	setSteeringQueue: (sessionId, queue) => {
+		set((state) => {
+			const current = state.bySession[sessionId];
+			return {
+				bySession: {
+					...state.bySession,
+					[sessionId]: {
+						...(current ?? { ...EMPTY_ENTRY }),
+						steeringQueue: queue,
 					},
 				},
 			};

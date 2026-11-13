@@ -10,6 +10,7 @@ const IDLE_ENTRY: SessionGcEntry = {
 	pendingDialogs: [],
 	unseenCompletion: false,
 	compacting: false,
+	steeringQueue: [],
 	followUpQueue: [],
 	messageCount: 0,
 };

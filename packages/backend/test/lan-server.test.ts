@@ -486,6 +486,29 @@ describe("LanObserverServer", () => {
 
 		// 200：prompt / abort 调进 backend
 		expect((await post(`${base}/api/sessions/session-1/prompt`, { text: " 你好 " }, auth)).status).toBe(200);
+		// 运行中投递方式：steer/followUp 原样透传；非法值 400 且不进 backend
+		expect(
+			(
+				await post(
+					`${base}/api/sessions/session-1/prompt`,
+					{ text: "改用 pnpm", streamingBehavior: "steer" },
+					auth,
+				)
+			).status,
+		).toBe(200);
+		expect(
+			(
+				await post(
+					`${base}/api/sessions/session-1/prompt`,
+					{ text: "下一轮", streamingBehavior: "followUp" },
+					auth,
+				)
+			).status,
+		).toBe(200);
+		expect(
+			(await post(`${base}/api/sessions/session-1/prompt`, { text: "x", streamingBehavior: "nope" }, auth))
+				.status,
+		).toBe(400);
 		expect((await post(`${base}/api/sessions/session-1/abort`, {}, auth)).status).toBe(200);
 		// respond：allowOnce → allow 映射；allowAlways 硬拒 403；未知 requestId 404
 		expect((await post(`${base}/api/permissions/req-1/respond`, { answer: "allowOnce" }, auth)).status).toBe(
@@ -497,7 +520,9 @@ describe("LanObserverServer", () => {
 		expect((await post(`${base}/api/permissions/ghost/respond`, { answer: "deny" }, auth)).status).toBe(404);
 
 		expect(calls).toEqual([
-			{ method: "prompt", args: ["session-1", "你好"] },
+			{ method: "prompt", args: ["session-1", "你好", undefined, undefined, undefined] },
+			{ method: "prompt", args: ["session-1", "改用 pnpm", undefined, undefined, "steer"] },
+			{ method: "prompt", args: ["session-1", "下一轮", undefined, undefined, "followUp"] },
 			{ method: "abort", args: ["session-1"] },
 			{ method: "respondPermission", args: ["req-1", "allow"] },
 		]);
@@ -510,6 +535,7 @@ describe("LanObserverServer", () => {
 			.map((l) => JSON.parse(l));
 		expect(lines.some((l) => l.action === "prompt" && l.result === "ok")).toBe(true);
 		expect(lines.some((l) => l.result === "denied: bad_answer")).toBe(true);
+		expect(lines.some((l) => l.result === "denied: bad_mode")).toBe(true);
 		expect(lines.some((l) => l.result === "denied: not_found")).toBe(true);
 		expect(lines.every((l) => !JSON.stringify(l).includes(token))).toBe(true);
 		expect(lines[0]).toMatchObject({ ip: expect.any(String), t: expect.any(String) });

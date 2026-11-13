@@ -25,6 +25,8 @@ export interface SessionGcEntry {
 	unseenCompletion: boolean;
 	/** 正在压缩上下文 */
 	compacting: boolean;
+	/** 待插入的引导（**只活在后端会话内存里、不落盘**，卸载即丢） */
+	steeringQueue: string[];
 	/** 排队跟发（**只活在后端会话内存里、不落盘**，卸载即丢） */
 	followUpQueue: string[];
 	/**
@@ -110,6 +112,7 @@ export function isProtected(item: SessionGcOpen, entry: SessionGcEntry | undefin
 		entry.unseenCompletion ||
 		entry.pendingPermissions.length > 0 ||
 		entry.pendingDialogs.length > 0 ||
+		entry.steeringQueue.length > 0 ||
 		entry.followUpQueue.length > 0
 	);
 }

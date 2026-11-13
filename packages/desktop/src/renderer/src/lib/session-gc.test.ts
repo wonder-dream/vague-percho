@@ -15,6 +15,7 @@ const IDLE_ENTRY: SessionGcEntry = {
 	pendingDialogs: [],
 	unseenCompletion: false,
 	compacting: false,
+	steeringQueue: [],
 	followUpQueue: [],
 	messageCount: 0,
 };
@@ -79,6 +80,15 @@ describe("pickUnloadCandidates · 单条保护条件", () => {
 			ids({
 				open: [session("q", NOW - 10_000_000)],
 				entryOf: () => ({ ...IDLE_ENTRY, followUpQueue: ["随便一句"] }),
+			}),
+		).toEqual([]);
+	});
+
+	it("有待插入引导不卸（steer 队列同样只活在后端内存）", () => {
+		expect(
+			ids({
+				open: [session("s", NOW - 10_000_000)],
+				entryOf: () => ({ ...IDLE_ENTRY, steeringQueue: ["改用 pnpm"] }),
 			}),
 		).toEqual([]);
 	});

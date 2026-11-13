@@ -3,6 +3,7 @@ import {
 	composerDocumentFromText,
 	composerDocumentText,
 	normalizeComposerDocument,
+	type QueuedInput,
 } from "@percho/shared";
 import { useEffect, useRef, useState } from "react";
 import { getPi } from "../../api";
@@ -26,6 +27,9 @@ import { useTranscriptStore } from "../../stores/transcript";
 import { buildCommentBlocks, buildQuoteBlock } from "./quote";
 import { buildSendUiError } from "./send-error";
 import { createSendGuard } from "./send-guard";
+
+/** 运行中待插入引导的上限：steer 逐次工具边界投递，允许攒几条；followUp 仍为单条。 */
+const STEER_QUEUE_LIMIT = 3;
 
 export interface UseComposerSendOptions {
 	draftKey: string;
@@ -134,8 +138,9 @@ export function useComposerSend(options: UseComposerSendOptions) {
 		draft: DraftEntry;
 		generation: number | undefined;
 		wasActive: boolean;
+		streamingBehavior: "steer" | "followUp";
 	}): Promise<void> => {
-		const { content, document, draft, generation, wasActive } = sent;
+		const { content, document, draft, generation, wasActive, streamingBehavior } = sent;
 		let sessionId = options.activeSessionId;
 		let recoveryKey = options.draftKey;
 		let optimisticId: string | null = null;
@@ -176,6 +181,7 @@ export function useComposerSend(options: UseComposerSendOptions) {
 				text: content,
 				document,
 				images: draft.images.length ? draft.images : undefined,
+				streamingBehavior,
 			});
 		} catch (error) {
 			if (sessionId && markedActive) {
@@ -195,11 +201,12 @@ export function useComposerSend(options: UseComposerSendOptions) {
 		}
 	};
 
-	const handleSend = async () => {
+	const handleSend = async (streamingBehavior: "steer" | "followUp" = "steer") => {
 		// 图片准备可能跨越导航或一轮运行结束；发送检查读取原目标的当前状态。
 		const current = options.activeSessionId
 			? useTranscriptStore.getState().bySession[options.activeSessionId]
 			: undefined;
+		const steeringQueue = current?.steeringQueue ?? [];
 		const followUpQueue = current?.followUpQueue ?? [];
 		const compacting = current?.compacting ?? false;
 		const agentActive = current?.agentActive ?? false;
@@ -225,7 +232,7 @@ export function useComposerSend(options: UseComposerSendOptions) {
 				})
 			: undefined;
 		if (document) content = composerDocumentText(document);
-		// 运行中（streaming）不拦截：prompt 走 followUp 排队；仅防双击重发（sending）
+		// 运行中（streaming）不拦截：prompt 按 streamingBehavior 走 steer 插入或 followUp 排队；仅防双击重发（sending）
 		if ((!content && images.length === 0) || useDraftStore.getState().pendingBySession[options.draftKey])
 			return;
 		// 压缩中禁发：SDK 拒绝压缩中的 prompt，提前拦截保住草稿
@@ -238,10 +245,16 @@ export function useComposerSend(options: UseComposerSendOptions) {
 			pushToast("warning", "composer.imageUnsupported");
 			return;
 		}
-		// 运行中保留单条排队上限；暂停或停止后的人工新消息必须能携带旧队列恢复。
-		if (agentActive && followUpQueue.length >= 1 && (document || !content.startsWith("/"))) {
-			showFeedback(t("composer.queueFull"), "warn");
-			return;
+		// 运行中两条队列各自限额；暂停或停止后的人工新消息必须能携带旧队列恢复，slash 命令不占额度。
+		if (agentActive && (document || !content.startsWith("/"))) {
+			if (streamingBehavior === "steer" && steeringQueue.length >= STEER_QUEUE_LIMIT) {
+				showFeedback(t("composer.steerQueueFull"), "warn");
+				return;
+			}
+			if (streamingBehavior === "followUp" && followUpQueue.length >= 1) {
+				showFeedback(t("composer.queueFull"), "warn");
+				return;
+			}
 		}
 		// 同步锁：`sending` 下一帧才生效，挡不住「draft 页要先 await 转正」这个窗口里的第二次触发
 		// （两次 Enter 会共享同一次 createSession，然后各自 prompt 一遍 = 同一句话发两次）
@@ -249,7 +262,7 @@ export function useComposerSend(options: UseComposerSendOptions) {
 		try {
 			const generation = useSessionsStore.getState().newSessionDraft?.generation;
 			const draft = takeDraft(options.draftKey);
-			await sendNow({ content, document, draft, generation, wasActive: agentActive });
+			await sendNow({ content, document, draft, generation, wasActive: agentActive, streamingBehavior });
 		} finally {
 			sendGuard.current.release();
 		}
@@ -257,9 +270,14 @@ export function useComposerSend(options: UseComposerSendOptions) {
 
 	const restoreQueue = async (sessionId: string) => {
 		const cleared = await getExecutionApi(sessionId).clearQueue({ sessionId });
-		const inputs =
-			cleared.followUpInputs ??
-			cleared.followUp.map((text) => ({ document: composerDocumentFromText(text), images: [] }));
+		// 较旧运行时可能只回 followUp：缺字段按空队列处理，不能因此连 followUp 一起取不回来。
+		const asInputs = (texts?: string[], inputs?: QueuedInput[]) =>
+			inputs ?? (texts ?? []).map((text) => ({ document: composerDocumentFromText(text), images: [] }));
+		// 取回顺序 = 投递顺序：先待插入的 steer 引导，再本轮结束后的 followUp。
+		const inputs = [
+			...asInputs(cleared.steering, cleared.steeringInputs),
+			...asInputs(cleared.followUp, cleared.followUpInputs),
+		];
 		useDraftStore.getState().updateDraft(sessionId, (d) => inputs.reduce(appendDraftInput, d));
 	};
 	/** 清队列成功后才回填，保留新编辑；所有异步结果都绑定原目标。 */

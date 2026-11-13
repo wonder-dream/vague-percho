@@ -10,6 +10,7 @@ export function canRetryError(entry: SessionTranscriptState | undefined, cardId:
 		entry.compacting ||
 		entry.compactionPause ||
 		entry.retrying ||
+		entry.steeringQueue.length > 0 ||
 		entry.followUpQueue.length > 0
 	)
 		return false;

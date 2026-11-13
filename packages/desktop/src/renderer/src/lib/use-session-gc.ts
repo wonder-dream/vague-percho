@@ -31,6 +31,7 @@ function entryOf(sessionId: string): SessionGcEntry | undefined {
 		pendingDialogs: entry.pendingDialogs,
 		unseenCompletion: entry.unseenCompletion,
 		compacting: entry.compacting,
+		steeringQueue: entry.steeringQueue,
 		followUpQueue: entry.followUpQueue,
 		messageCount: entry.messages.length,
 	};

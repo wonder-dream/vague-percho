@@ -872,6 +872,7 @@ export class PiBackend {
 		return this.registry.list().map((entry) => ({
 			meta: this.registry.toMeta(entry),
 			sequence: this.getSessionEventSequence(entry.session.sessionId),
+			steeringQueue: entry.session.getSteeringMessages().map(composerQueueText),
 			followUpQueue: entry.session.getFollowUpMessages().map(composerQueueText),
 			permissionMode: entry.modeRef.current,
 			streaming: entry.session.isStreaming,
@@ -933,6 +934,7 @@ export class PiBackend {
 			transcript: {
 				...transcript,
 				compactionPause: entry.session.compactionPause ?? null,
+				steeringQueue: entry.session.getSteeringMessages().map(composerQueueText),
 				followUpQueue: entry.session.getFollowUpMessages().map(composerQueueText),
 				todos: this.readTodos(entry),
 			},
@@ -1630,6 +1632,7 @@ export class PiBackend {
 		text: string,
 		images?: ImageInput[],
 		document?: ComposerDocument,
+		streamingBehavior: "steer" | "followUp" = "followUp",
 	): Promise<void> {
 		const entry = this.requireWritable(sessionId);
 		this.options.localSessionPaths?.assertCwd(entry.cwd);
@@ -1641,7 +1644,11 @@ export class PiBackend {
 			if (this.requireWritable(sessionId) !== entry)
 				throw new Error("Session changed while validating the project");
 		}
-		log.info("prompt", sessionId, { text: text.slice(0, 120), images: images?.length ?? 0 });
+		log.info("prompt", sessionId, {
+			text: text.slice(0, 120),
+			images: images?.length ?? 0,
+			streamingBehavior,
+		});
 		// session.prompt() 非流式路径会 await 整个 run（直到 agent_settled）；渲染端只需要
 		// “已受理/已入队”回执——用 preflightResult 提前返回，否则 IPC 挂一整轮，渲染端
 		// sending 状态被占住，运行中的 followUp 排队发送被防重发守卫静默拦截。
@@ -1657,9 +1664,9 @@ export class PiBackend {
 					.prompt(acceptedText, {
 						source: document ? "rpc" : undefined,
 						expandPromptTemplates: document ? false : undefined,
-						// 运行中发送走 followUp 排队（agent 完成后自动投递；steer 打断暂不支持）
-						// SDK 要求 streaming 时必传 streamingBehavior，否则抛错
-						streamingBehavior: "followUp",
+						// 运行中投递：steer=当前回合工具跑完、下次 LLM 调用前插入引导（不打断整轮）；
+						// followUp=本轮彻底结束后再发。SDK 要求 streaming 时必传，否则抛错。
+						streamingBehavior,
 						images: images?.map((image) => ({
 							type: "image" as const,
 							data: image.data,

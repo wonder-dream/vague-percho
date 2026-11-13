@@ -225,6 +225,7 @@ describe("session loader owns flights and data, not navigation", () => {
 			{
 				meta: meta("paused"),
 				sequence: 2,
+				steeringQueue: [],
 				followUpQueue: ["pending"],
 				permissionMode: "default",
 				streaming: false,

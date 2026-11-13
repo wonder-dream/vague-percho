@@ -5,10 +5,11 @@ import { ArrowUpIcon, StopIcon } from "./icons";
 
 /**
  * 远程输入区（M2）：remoteControl 开启时才由 App 渲染。
- * 发送：agent 运行中由后端 followUp 排队（发送即“已受理/已入队”回执）。
+ * 发送：agent 运行中默认 steer（当前工具跑完即插入引导，不打断整轮），可切到 followUp 排队。
  * 停止：运行中才可用。readOnly（subagent 产物）会话整区禁用。
  * UX v3：悬浮毛玻璃条 + 同位单按钮状态切换（与桌面端同构）：运行中且无输入 → 停止
- * （黑白钮 + 实心方块，与发送同色同位）；有输入文本 → 发送（followUp 排队）。
+ * （黑白钮 + 实心方块，与发送同色同位）；有输入文本 → 发送（按当前投递方式）。
+ * 移动端没有 Ctrl 键：运行中显示一个投递方式胶囊，点一下在「插入引导 / 排队」之间切换。
  */
 export function Composer({ sessionId }: { sessionId: string }) {
 	const sendPrompt = useLanStore((s) => s.sendPrompt);
@@ -18,6 +19,8 @@ export function Composer({ sessionId }: { sessionId: string }) {
 	const hasView = useLanStore((s) => Boolean(s.views[sessionId]));
 	const readOnly = useLanStore((s) => s.list.find((item) => item.sessionId === sessionId)?.readOnly ?? false);
 	const [text, setText] = useState("");
+	/** 运行中投递方式：默认中途插入引导；移动端靠胶囊切换，桌面浏览器也可 Ctrl/⌘+Enter 直接排队。 */
+	const [mode, setMode] = useState<"steer" | "followUp">("steer");
 	const [sending, setSending] = useState(false);
 	const [notice, setNotice] = useState<string | null>(null);
 	const areaRef = useRef<HTMLTextAreaElement>(null);
@@ -50,12 +53,13 @@ export function Composer({ sessionId }: { sessionId: string }) {
 		el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
 	};
 
-	const send = async () => {
+	const send = async (override?: "steer" | "followUp") => {
 		const value = text.trim();
 		if (!value || sending || readOnly) return;
+		const behavior = override ?? mode;
 		setSending(true);
 		const wasActive = agentActive;
-		const error = await sendPrompt(sessionId, value);
+		const error = await sendPrompt(sessionId, value, behavior);
 		setSending(false);
 		if (error) {
 			showError(error);
@@ -63,7 +67,7 @@ export function Composer({ sessionId }: { sessionId: string }) {
 		}
 		setText("");
 		requestAnimationFrame(autoGrow);
-		if (wasActive) showNotice(t("composer.queued"));
+		if (wasActive) showNotice(t(behavior === "steer" ? "composer.steered" : "composer.queued"));
 	};
 
 	const abort = async () => {
@@ -98,13 +102,25 @@ export function Composer({ sessionId }: { sessionId: string }) {
 						autoGrow();
 					}}
 					onKeyDown={(e) => {
-						// Enter 发送、Shift+Enter 换行（移动端输入法合成期不触发）
+						// Enter 发送、Shift+Enter 换行（移动端输入法合成期不触发）；Ctrl/⌘+Enter 强制排队
 						if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
 							e.preventDefault();
-							void send();
+							void send(e.ctrlKey || e.metaKey ? "followUp" : undefined);
 						}
 					}}
 				/>
+				{agentActive && (
+					<button
+						type="button"
+						className="mode-chip"
+						data-mode={mode}
+						onClick={() => setMode((prev) => (prev === "steer" ? "followUp" : "steer"))}
+						aria-label={t("composer.modeToggle")}
+						title={t("composer.modeToggle")}
+					>
+						{t(mode === "steer" ? "composer.modeSteer" : "composer.modeQueue")}
+					</button>
+				)}
 				{showStop ? (
 					<button
 						type="button"

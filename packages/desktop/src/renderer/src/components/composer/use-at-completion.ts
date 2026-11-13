@@ -111,7 +111,11 @@ export function useAtCompletion(options: UseAtCompletionOptions) {
 			setAtDismissed(true);
 			return true;
 		}
-		if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing)) {
+		// Ctrl/Cmd+Enter 是「排队发送」，不能被补全菜单吃掉
+		if (
+			e.key === "Tab" ||
+			(e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.nativeEvent.isComposing)
+		) {
 			e.preventDefault();
 			const path = atFiltered[Math.min(atSelected, atFiltered.length - 1)];
 			if (path) handleAtPick(path);

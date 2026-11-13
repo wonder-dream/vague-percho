@@ -194,7 +194,8 @@ export function useSlashMenu(options: UseSlashMenuOptions) {
 			setSlashDismissed(true);
 			return true;
 		}
-		if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+		// Ctrl/Cmd+Enter 是「排队发送」，不能被命令菜单吃掉
+		if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.nativeEvent.isComposing) {
 			e.preventDefault();
 			handleSlashPickByIndex(slashSelected);
 			return true;

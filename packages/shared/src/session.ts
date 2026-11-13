@@ -321,7 +321,7 @@ export interface QuotaInfo {
 	error?: string;
 }
 
-/** 运行中排队的消息（clearQueue 返回结构；桌面端只用 followUp，steering 恒为空） */
+/** 运行中排队的消息（clearQueue 返回结构）：steering=中途插入的引导，followUp=本轮结束后的排队。 */
 export interface QueuedMessages {
 	steering: string[];
 	followUp: string[];
@@ -546,6 +546,7 @@ export interface SessionBaseline {
 export interface LoadedSessionSummary {
 	compactionPause?: import("@earendil-works/pi-coding-agent").CompactionPause | null;
 	sequence: number;
+	steeringQueue: string[];
 	followUpQueue: string[];
 	permissionMode: PermissionMode;
 	meta: SessionMeta;

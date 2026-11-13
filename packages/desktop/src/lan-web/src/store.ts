@@ -14,7 +14,11 @@ interface LanStore extends LanAppState {
 	/** 历史会话按需拉 transcript（无种子时由 ChatView 触发）。 */
 	loadTranscript: (sessionId: string) => Promise<void>;
 	/** M2 写操作。返回 null = 成功，string = 错误提示。401 自动 logout。 */
-	sendPrompt: (sessionId: string, text: string) => Promise<string | null>;
+	sendPrompt: (
+		sessionId: string,
+		text: string,
+		streamingBehavior?: "steer" | "followUp",
+	) => Promise<string | null>;
 	abortSession: (sessionId: string) => Promise<string | null>;
 	respondPermission: (requestId: string, answer: "allowOnce" | "deny") => Promise<string | null>;
 }
@@ -51,8 +55,11 @@ export const useLanStore = create<LanStore>((set) => ({
 			// 网络失败：保持「加载中」，下次进入会话重试
 		}
 	},
-	sendPrompt: async (sessionId, text) => {
-		const res = await postApi(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, { text });
+	sendPrompt: async (sessionId, text, streamingBehavior) => {
+		const res = await postApi(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
+			text,
+			...(streamingBehavior ? { streamingBehavior } : {}),
+		});
 		return res;
 	},
 	abortSession: async (sessionId) => {
