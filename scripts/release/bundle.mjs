@@ -5,13 +5,12 @@ import { artifactNames } from "./plan.mjs";
 import { sha256 } from "./run.mjs";
 import { prepareRuntimeManifest } from "./runtime-manifest.mjs";
 
-/** A release is complete only when every platform and both runtimes have passed. */
+/** A release is complete only when every platform (this fork ships Windows and Linux) and both runtimes have passed. */
 export async function verifyBundle(directory, release) {
 	await prepareRuntimeManifest(directory, null, release);
 	const files = [];
 	const names = new Set();
 	for (const [platform, architectures] of [
-		["darwin", ["arm64", "x64"]],
 		["win32", ["x64"]],
 		["linux", ["x64"]],
 	]) {

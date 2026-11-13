@@ -19,7 +19,7 @@ export interface SessionWorkspaceSnapshot {
 }
 
 /** 主题模式：system = 跟随系统 prefers-color-scheme */
-export type ThemeMode = "light" | "dark" | "system";
+export type ThemeMode = "light" | "dark" | "system" | "dracula";
 
 /** 自定义背景：image 为主进程 userData/backgrounds/ 下的文件名（renderer 经 pi-bg:// 协议加载）；dim 为遮罩不透明度 0–1（越大背景越淡） */
 export interface BackgroundSettings {

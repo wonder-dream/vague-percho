@@ -30,6 +30,9 @@ const SMOOTH_OPTIONS: SmoothMarkdownStreamOptions = {
 	// 其余（targetLatencyMs 900 / catchUpLatencyMs 350 / catchUpThreshold 600 / max 1000cps）用默认
 };
 
+/** 预注册的 shiki 主题：默认只有 vitesse 两套，dracula 需显式列出才会加载 */
+const CODE_THEMES = ["vitesse-dark", "vitesse-light", "dracula"];
+
 const CODE_BLOCK_PROPS_BASE = {
 	// 标题栏在视觉上被 CSS 悬浮化（见 globals.css），这里只裁掉多余按钮：字号三键/全屏/预览/折叠，
 	// 保留复制。不能用 showHeader:false——它会连复制按钮一起去掉。
@@ -90,6 +93,7 @@ export function Markdown({
 	cwd?: string | null;
 }) {
 	const isDark = useThemeStore((s) => s.resolved === "dark");
+	const dracula = useThemeStore((s) => s.palette === "dracula");
 	const [menu, setMenu] = useState<{ target: string; cwd: string; anchor: MenuAnchor } | null>(null);
 	const onLinkClick = (event: MouseEvent<HTMLDivElement>) => {
 		const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
@@ -155,7 +159,8 @@ export function Markdown({
 					smoothStreamingOptions={SMOOTH_OPTIONS}
 					isDark={isDark}
 					codeBlockLightTheme="vitesse-light"
-					codeBlockDarkTheme="vitesse-dark"
+					codeBlockDarkTheme={dracula ? "dracula" : "vitesse-dark"}
+					themes={CODE_THEMES}
 					codeBlockProps={codeBlockProps}
 					deferNodesUntilVisible={false}
 				/>

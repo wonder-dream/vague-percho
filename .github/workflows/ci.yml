@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches: [main]
 
@@ -39,19 +40,23 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/electron
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
 
   desktop:
-    needs: [prepare, runtime, check]
+    needs: [prepare, runtime]
     uses: ./.github/workflows/desktop-package.yml
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
 
   release-bundle:
-    needs: [prepare, desktop]
+    needs: [prepare, desktop, check]
     runs-on: ubuntu-latest
     env:
       PERCHO_BUILD_RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
@@ -78,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -86,6 +91,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/electron/Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
       - name: Verify private storage on native filesystem and ACLs
         run: npm run test -w packages/backend -- test/local-agent-storage.test.ts test/local-agent-storage-sdk.test.ts

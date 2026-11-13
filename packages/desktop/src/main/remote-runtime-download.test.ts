@@ -22,7 +22,7 @@ afterEach(async () => {
 const body = Buffer.from("verified artifact");
 const artifact: RuntimeArtifact = {
 	asset: "percho-runtime-linux-arm64.tar.gz",
-	url: "https://github.com/Jaxton07/percho/releases/download/v1.0.0/percho-runtime-linux-arm64.tar.gz",
+	url: "https://github.com/wonder-dream/vague-percho/releases/download/v1.0.0/percho-runtime-linux-arm64.tar.gz",
 	bytes: body.length,
 	sha256: createHash("sha256").update(body).digest("hex"),
 };

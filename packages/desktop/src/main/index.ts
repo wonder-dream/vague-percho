@@ -15,7 +15,7 @@ import { prepareLocalStorage } from "./storage-startup";
 import { UiPluginManager, uiPluginsResourcesDir } from "./ui-plugins/manager";
 import { loadUiState } from "./ui-state";
 import { initUpdater, scheduleAutoUpdateCheck } from "./updater";
-import { applyChromeTheme, createWindow, markQuitting, resolveTheme } from "./window";
+import { applyChromeTheme, createWindow, markQuitting, resolveTheme, setThemeMode } from "./window";
 import { sanitizeWindowBounds } from "./window-bounds";
 
 const log = createLogger("main");
@@ -44,12 +44,12 @@ protocol.registerSchemesAsPrivileged([
 // Windows/Linux 不显示默认应用菜单（File/Edit/...）；macOS 菜单在系统菜单栏且承担复制粘贴等快捷键，保留
 if (process.platform !== "darwin") Menu.setApplicationMenu(null);
 // 系统深浅色变化（或用户切换主题导致 themeSource 变更）→ 同步窗口底色与 Windows 窗口按钮覆盖层
-nativeTheme.on("updated", () => applyChromeTheme(nativeTheme.themeSource));
+nativeTheme.on("updated", () => applyChromeTheme());
 
 app.whenReady().then(async () => {
 	if (releaseChannel === "dev") app.dock?.setIcon(join(__dirname, "../../build/icon-dev.png"));
 	const uiState = await loadUiState();
-	nativeTheme.themeSource = uiState?.theme ?? "system";
+	setThemeMode(uiState?.theme ?? "system");
 	const initialBounds = sanitizeWindowBounds(
 		uiState?.windowBounds ?? null,
 		screen.getAllDisplays().map((display) => display.workArea),

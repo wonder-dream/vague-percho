@@ -149,6 +149,66 @@
 	--scrollbar-thumb-hover: #5d5d66;
 }
 
+/* Dracula：沿用背景 #282a36 与前景 #f8f8f2，强调色采用粉色 #ff79c6。
+   次要文字和表面用低饱和中性色，避免官方注释蓝作为界面文字时对比不足。
+   :root 提高优先级：后文还有同为 (0,1,0) 的 [data-theme="dark"] 块（diff 色）会覆盖它。 */
+:root[data-palette="dracula"] {
+	--color-canvas: #282a36;
+	--color-surface: #30323e;
+	--color-hover: #393b48;
+	--color-border: #424450;
+	--color-border-strong: #595b69;
+	--color-bubble: #3b3d4a;
+	--color-user-bubble: var(--color-bubble);
+	--color-ink: #f8f8f2;
+	--color-ink-2: #dedee0;
+	--color-ink-dim: #b4b6c0;
+	--color-ink-faint: #898e9f;
+	--color-ink-working: #b4b6c0;
+	--color-on-ink: #282a36;
+	--color-accent: #ff79c6;
+	--color-on-accent: #282a36;
+	--color-skill-reference-bg: #403042;
+	--color-skill-reference-ink: #ff9bd5;
+	--bar-grad: linear-gradient(96deg, #bd93f9 0%, #ff79c6 58%, #ff9bd5 100%);
+	--color-rule: #424450;
+	--color-update: #2e4552;
+	--color-on-update: #8be9fd;
+	--color-err: #ff5555;
+	--color-warn: #ffb86c;
+	--color-info: #898e9f;
+	--color-ok: #50fa7b;
+	--color-subagent-ok: #50fa7b;
+	--color-subagent-err: #ff5555;
+	--color-switch-off: #595b69;
+	--color-scrim: 40 42 54;
+	--markdown-code-bg: #252733;
+	--markdown-code-text: #f8f8f2;
+	--markdown-quote-border: #595b69;
+	--markdown-quote-text: #b4b6c0;
+	--markdown-table-border: #424450;
+	--markdown-link-decoration: #ff79c6;
+	--markdown-link-hover: #ff9bd5;
+	--shimmer-highlight: rgba(248, 248, 242, 0.95);
+	--shadow-soft: 0 0 14px -2px rgba(0, 0, 0, 0.35);
+	--shadow-pop: 0 4px 16px rgba(0, 0, 0, 0.4);
+	--shadow-dialog: 0 12px 40px rgba(0, 0, 0, 0.5);
+	--scrollbar-thumb: #595b69;
+	--scrollbar-thumb-hover: #777a89;
+	--diff-add: #50fa7b;
+	--diff-add-bg: rgba(80, 250, 123, 0.08);
+	--diff-add-gutter: rgba(80, 250, 123, 0.14);
+	--diff-del: #ff5555;
+	--diff-del-bg: rgba(255, 85, 85, 0.09);
+	--diff-del-gutter: rgba(255, 85, 85, 0.14);
+}
+
+/* 深色主题使用前景色作遮罩会把背景洗成浅灰；Dracula 弹窗保持暗背景层次。 */
+:root[data-palette="dracula"] .fixed.inset-0[role="dialog"][aria-modal] {
+	background-color: rgb(12 13 18 / 48%);
+}
+
+
 /* 子代理状态：工作中在 80×22 透明区域里放三颗打字点；终态从右向左收成 6px 圆点（左端固定）。
    终态用 Apple 系统绿/红，只作用于子代理，不影响通用 severity / UI 插件状态点。 */
 .subagent-slot {

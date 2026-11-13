@@ -649,6 +649,7 @@ export const en: Messages = {
 		fontSizePresetLarger: "Larger",
 		themeLight: "Light",
 		themeDark: "Dark",
+		themeDracula: "Dracula",
 		themeSystem: "System",
 		background: "Background image",
 		backgroundHint: "Pick an image as the app background; raise the overlay opacity to keep text readable",

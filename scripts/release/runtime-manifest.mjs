@@ -23,7 +23,7 @@ export async function prepareRuntimeManifest(input, output, release, requirePubl
 			!Number.isSafeInteger(item.bytes) ||
 			item.bytes < 1 ||
 			item.bytes > 256 * 1024 * 1024 ||
-			item.url !== `https://github.com/Jaxton07/percho/releases/download/${release.tag}/${asset}`
+			item.url !== `https://github.com/wonder-dream/vague-percho/releases/download/${release.tag}/${asset}`
 		)
 			throw new Error(`Runtime metadata does not match release version/source (${arch})`);
 		const path = resolve(input, asset);

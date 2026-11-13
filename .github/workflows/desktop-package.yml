@@ -16,8 +16,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            arch: all
           - os: windows-latest
             arch: x64
           - os: ubuntu-latest
@@ -36,6 +34,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/AppData/Local/electron/Cache
+          key: electron-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
       - name: Verify Windows long-session rendering regressions
         if: runner.os == 'Windows'

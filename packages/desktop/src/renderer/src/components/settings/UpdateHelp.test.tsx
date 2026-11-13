@@ -23,7 +23,7 @@ import { UpdateHelp } from "./UpdateHelp";
 
 const props = {
 	windows: true,
-	repoUrl: "https://github.com/Jaxton07/percho",
+	repoUrl: "https://github.com/wonder-dream/vague-percho",
 	diagnostics: null as UpdateDiagnosticsInfo | null,
 };
 beforeEach(() => {
@@ -86,7 +86,7 @@ describe("update recovery help", () => {
 	it("manual download points to the official latest release, not a local executable", () => {
 		buttons(UpdateHelp(props))[1]?.onClick();
 		expect(mock.openExternal).toHaveBeenCalledWith({
-			url: "https://github.com/Jaxton07/percho/releases/latest",
+			url: "https://github.com/wonder-dream/vague-percho/releases/latest",
 		});
 	});
 });

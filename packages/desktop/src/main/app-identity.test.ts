@@ -39,7 +39,7 @@ describe("application channel identity", () => {
 		identity.configureAppIdentity();
 		expect(identity.releaseChannel).toBe("stable");
 		expect(identity.supportsUpdates).toBe(true);
-		expect(identity.appIdentity.appId).toBe("io.github.jaxton07.percho");
+		expect(identity.appIdentity.appId).toBe("io.github.wonder-dream.vague-percho");
 		expect(fake.setPath).not.toHaveBeenCalled();
 	});
 	it("isolates packaged beta data and disallows stable updates", async () => {
